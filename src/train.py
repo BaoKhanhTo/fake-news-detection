@@ -1,92 +1,130 @@
 import pandas as pd
 import joblib
+import os
+import sys
+import numpy as np
+import json
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import classification_report, confusion_matrix
-import os
-import sys
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score, recall_score, precision_score
+from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 
 # Add parent dir to path to import src
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from src.preprocess import clean_text
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.utils import resample
-
-from sklearn.ensemble import RandomForestClassifier, VotingClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.pipeline import FeatureUnion
-from sklearn.preprocessing import FunctionTransformer
-import numpy as np
-
-def get_text_features(text_series):
-    # Tính toán các đặc trưng bổ sung: độ dài, số lượng dấu chấm than, số lượng chữ số
-    features = []
-    for text in text_series:
-        text_str = str(text)
-        length = len(text_str)
-        exclamation_count = text_str.count('!')
-        digit_count = sum(c.isdigit() for c in text_str)
-        capitals_count = sum(1 for c in text_str if c.isupper())
-        features.append([length, exclamation_count, digit_count, capitals_count])
-    return np.array(features)
-
-def train_model(data_path, model_output_path):
+def train_all_models(data_path, models_dir):
     print(f"Loading data from {data_path}...")
     if not os.path.exists(data_path):
         print(f"Error: File {data_path} not found.")
         return
 
-    try:
-        df = pd.read_csv(data_path)
-    except Exception as e:
-        print(f"Error reading CSV: {e}")
-        return
-
-    text_col = 'text' if 'text' in df.columns else 'post_message'
+    df = pd.read_csv(data_path)
+    text_col = 'post_message' if 'post_message' in df.columns else 'text'
     df.dropna(subset=[text_col, 'label'], inplace=True)
     
-    print("Preprocessing and balancing data...")
+    print("Preprocessing data...")
     df['clean_text'] = df[text_col].apply(clean_text)
 
-    # Cân bằng dữ liệu (Oversampling)
-    df_majority = df[df.label == 0]
-    df_minority = df[df.label == 1]
-    df_minority_upsampled = resample(df_minority, replace=True, n_samples=len(df_majority), random_state=42)
-    df_balanced = pd.concat([df_majority, df_minority_upsampled])
+    X = df['clean_text']
+    y = df['label']
 
-    X = df_balanced['clean_text']
-    y = df_balanced['label']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15, random_state=42)
+    models_info = {}
 
-    print("Training Advanced Hybrid Model...")
+    # 1. TF-IDF + Logistic Regression
+    print("Training TF-IDF + Logistic Regression...")
+    lr_pipeline = Pipeline([
+        ('tfidf', TfidfVectorizer(max_features=5000)),
+        ('clf', LogisticRegression(max_iter=1000))
+    ])
+    lr_pipeline.fit(X_train, y_train)
+    models_info['logistic_regression'] = evaluate_and_save(lr_pipeline, X_test, y_test, 'logistic_regression', models_dir)
+
+    # 2. TF-IDF + SVM
+    print("Training TF-IDF + SVM...")
+    svm_pipeline = Pipeline([
+        ('tfidf', TfidfVectorizer(max_features=5000)),
+        ('clf', SVC(probability=True))
+    ])
+    svm_pipeline.fit(X_train, y_train)
+    models_info['svm'] = evaluate_and_save(svm_pipeline, X_test, y_test, 'svm', models_dir)
+
+    # 3. TF-IDF + Decision Tree
+    print("Training TF-IDF + Decision Tree...")
+    dt_pipeline = Pipeline([
+        ('tfidf', TfidfVectorizer(max_features=5000)),
+        ('clf', DecisionTreeClassifier())
+    ])
+    dt_pipeline.fit(X_train, y_train)
+    models_info['decision_tree'] = evaluate_and_save(dt_pipeline, X_test, y_test, 'decision_tree', models_dir)
+
+    # 4. TF-IDF + Naive Bayes
+    print("Training TF-IDF + Naive Bayes...")
+    nb_pipeline = Pipeline([
+        ('tfidf', TfidfVectorizer(max_features=5000)),
+        ('clf', MultinomialNB())
+    ])
+    nb_pipeline.fit(X_train, y_train)
+    models_info['naive_bayes'] = evaluate_and_save(nb_pipeline, X_test, y_test, 'naive_bayes', models_dir)
+
+    # 5. TF-IDF + Random Forest
+    print("Training TF-IDF + Random Forest...")
+    rf_pipeline = Pipeline([
+        ('tfidf', TfidfVectorizer(max_features=5000)),
+        ('clf', RandomForestClassifier(n_estimators=100))
+    ])
+    rf_pipeline.fit(X_train, y_train)
+    models_info['random_forest'] = evaluate_and_save(rf_pipeline, X_test, y_test, 'random_forest', models_dir)
+
+    # 6. Doc2Vec Training
+    print("Training Doc2Vec model...")
+    tagged_data = [TaggedDocument(words=text.split(), tags=[str(i)]) for i, text in enumerate(X)]
+    d2v_model = Doc2Vec(vector_size=100, window=5, min_count=2, workers=4, epochs=40)
+    d2v_model.build_vocab(tagged_data)
+    d2v_model.train(tagged_data, total_examples=d2v_model.corpus_count, epochs=d2v_model.epochs)
+    d2v_model.save(os.path.join(models_dir, "doc2vec.model"))
     
-    # Kết hợp Word TF-IDF và Char TF-IDF (Phân tích sâu cấu trúc từ như Huffman)
-    features = FeatureUnion([
-        ('word_tfidf', TfidfVectorizer(ngram_range=(1, 3), sublinear_tf=True, max_features=5000)),
-        ('char_tfidf', TfidfVectorizer(ngram_range=(2, 5), analyzer='char', sublinear_tf=True, max_features=5000)),
-    ])
+    # Save all metrics
+    with open(os.path.join(models_dir, "models_metrics.json"), "w") as f:
+        json.dump(models_info, f, indent=4)
+    
+    print("All models trained and saved!")
 
-    pipeline = Pipeline([
-        ('features', features),
-        ('clf', RandomForestClassifier(n_estimators=300, max_depth=None, min_samples_split=2, random_state=42, n_jobs=-1))
-    ])
-
-    pipeline.fit(X_train, y_train)
-
-    print("Evaluating model...")
+def evaluate_and_save(pipeline, X_test, y_test, name, models_dir):
     y_pred = pipeline.predict(X_test)
-    print(classification_report(y_test, y_pred))
     
-    print(f"Saving model to {model_output_path}...")
-    os.makedirs(os.path.dirname(model_output_path), exist_ok=True)
-    joblib.dump(pipeline, model_output_path)
-    print("Training complete!")
+    accuracy = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+    
+    cm = confusion_matrix(y_test, y_pred)
+    # cm format: [[TN, FP], [FN, TP]]
+    tn, fp, fn, tp = cm.ravel()
+    far = fp / (fp + tn) if (fp + tn) > 0 else 0 # False Alarm Rate
+    
+    metrics = {
+        "accuracy": float(accuracy),
+        "f1": float(f1),
+        "recall": float(recall),
+        "precision": float(precision),
+        "false_alarm_rate": float(far),
+        "confusion_matrix": cm.tolist()
+    }
+    
+    joblib.dump(pipeline, os.path.join(models_dir, f"{name}.pkl"))
+    return metrics
 
 if __name__ == "__main__":
     DATA_PATH = os.path.join("data", "fake_news.csv")
-    MODEL_PATH = os.path.join("models", "fake_news_model.pkl")
-    train_model(DATA_PATH, MODEL_PATH)
+    MODELS_DIR = "models"
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    train_all_models(DATA_PATH, MODELS_DIR)

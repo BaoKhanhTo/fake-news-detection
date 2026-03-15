@@ -5,12 +5,15 @@ from pydantic import BaseModel
 import joblib
 import os
 import sys
+import json
+import numpy as np
+from gensim.models.doc2vec import Doc2Vec
 
 # Import preprocessing
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 from src.preprocess import clean_text
 
-app = FastAPI(title="Vietnamese Fake News Detection API")
+app = FastAPI(title="Hệ thống Giáo dục Nhận biết Tin giả")
 
 # Allow CORS for frontend dev
 app.add_middleware(
@@ -21,172 +24,145 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load Model
-MODEL_PATH = os.path.join("models", "fake_news_model.pkl")
-model = None
+# Load Models and Metrics
+MODELS_DIR = "models"
+models = {}
+metrics = {}
+d2v_model = None
 
-try:
-    if os.path.exists(MODEL_PATH):
-        model = joblib.load(MODEL_PATH)
-        print("Model loaded successfully.")
-    else:
-        print("Warning: Model not found. Please train the model first.")
-except Exception as e:
-    print(f"Error loading model: {e}")
+def load_resources():
+    global models, metrics, d2v_model
+    print(f"DEBUG: Loading resources from directory: {os.path.abspath(MODELS_DIR)}")
+    try:
+        metrics_path = os.path.join(MODELS_DIR, "models_metrics.json")
+        if os.path.exists(metrics_path):
+            with open(metrics_path, "r") as f:
+                metrics = json.load(f)
+            print(f"DEBUG: Metrics loaded for {list(metrics.keys())}")
+        else:
+            print(f"DEBUG: Metrics file NOT found: {metrics_path}")
+        
+        model_names = ['logistic_regression', 'svm', 'decision_tree', 'naive_bayes', 'random_forest']
+        for name in model_names:
+            path = os.path.join(MODELS_DIR, f"{name}.pkl")
+            if os.path.exists(path):
+                try:
+                    print(f"DEBUG: Attempting to load {name}...")
+                    models[name] = joblib.load(path)
+                    print(f"DEBUG: Success loading {name}")
+                except Exception as model_e:
+                    print(f"DEBUG: Failed to load {name}: {model_e}")
+            else:
+                print(f"DEBUG: Model file NOT found: {path}")
+        
+        d2v_path = os.path.join(MODELS_DIR, "doc2vec.model")
+        if os.path.exists(d2v_path):
+            print(f"DEBUG: Loading Doc2Vec from {d2v_path}...")
+            d2v_model = Doc2Vec.load(d2v_path)
+        else:
+            print(f"DEBUG: Doc2Vec file NOT found: {d2v_path}")
+            
+        print(f"DEBUG: Total models loaded: {list(models.keys())}")
+    except Exception as e:
+        print(f"DEBUG: Error loading resources: {e}")
+
+load_resources()
 
 class NewsItem(BaseModel):
     text: str
 
+# Educational Content
+EDUCATIONAL_CONTENT = {
+    "logistic_regression": {
+        "name": "Logistic Regression (Hồi quy Logistic)",
+        "concept": "Hồi quy Logistic là một thuật toán phân loại được sử dụng để dự đoán xác suất của một biến mục tiêu nhị phân.",
+        "principle": "Thuật toán sử dụng hàm Logistic (hàm Sigmoid) để chuyển đổi đầu ra thành xác suất từ 0 đến 1.",
+        "flow": "Văn bản -> TF-IDF -> Tính tổng trọng số -> Hàm Sigmoid -> Xác suất -> Phân loại."
+    },
+    "svm": {
+        "name": "Support Vector Machine (Máy vector hỗ trợ)",
+        "concept": "SVM tìm kiếm một siêu phẳng tối ưu để phân tách các điểm dữ liệu thành hai lớp.",
+        "principle": "Nó cố gắng tối đa hóa khoảng cách giữa các điểm dữ liệu gần nhất của hai lớp.",
+        "flow": "Văn bản -> TF-IDF -> Ánh xạ không gian -> Tìm siêu phẳng -> Phân loại."
+    },
+    "decision_tree": {
+        "name": "Decision Tree (Cây quyết định)",
+        "concept": "Cây quyết định sử dụng cấu trúc cây để đưa ra các quyết định dựa trên đặc trưng.",
+        "principle": "Chia nhỏ dữ liệu dựa trên các câu hỏi về từ khóa quan trọng nhất.",
+        "flow": "Văn bản -> TF-IDF -> Kiểm tra nút -> Đi theo nhánh -> Kết luận tại lá."
+    },
+    "naive_bayes": {
+        "name": "Naive Bayes (Bayes ngây thơ)",
+        "concept": "Dựa trên định lý Bayes với giả định các đặc trưng độc lập.",
+        "principle": "Tính xác suất hậu nghiệm dựa trên tần suất xuất hiện của từ.",
+        "flow": "Văn bản -> TF-IDF -> Tính xác suất Bayes -> So sánh -> Chọn lớp."
+    },
+    "random_forest": {
+        "name": "Random Forest (Rừng ngẫu nhiên)",
+        "concept": "Xây dựng hàng trăm cây quyết định và lấy phiếu bầu đa số.",
+        "principle": "Giảm quá khớp bằng cách kết hợp kết quả của nhiều cây độc lập.",
+        "flow": "Văn bản -> TF-IDF -> Qua hàng trăm cây -> Voting -> Kết luận."
+    },
+    "doc2vec": {
+        "name": "Doc2Vec (Vectơ hóa văn bản)",
+        "concept": "Biểu diễn văn bản dưới dạng các vectơ số có độ dài cố định hiểu được ngữ nghĩa.",
+        "principle": "Học ngữ cảnh bằng cách dự đoán từ xung quanh trong đoạn văn.",
+        "flow": "Văn bản -> Tokenize -> Mạng nơ-ron -> Vectơ 100 chiều -> Ngữ nghĩa."
+    }
+}
+
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "model_loaded": model is not None}
+    return {"status": "ok", "models_loaded": list(models.keys())}
 
 @app.post("/predict")
 def predict(item: NewsItem):
-    if not model:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+    if not models:
+        load_resources()
+        if not models:
+            raise HTTPException(status_code=503, detail="Models not loaded on server")
     
     cleaned_text = clean_text(item.text)
-    print(f"DEBUG: Input: {item.text[:100]}...")
+    results = {}
     
-    # Get probabilities
-    probs = model.predict_proba([cleaned_text])[0]
-    # Assuming model classes are [0, 1] for [Real, Fake]
-    real_prob = float(probs[0])
-    fake_prob = float(probs[1])
+    for name in ['logistic_regression', 'svm', 'decision_tree', 'naive_bayes', 'random_forest']:
+        if name in models:
+            try:
+                pipeline = models[name]
+                probs = pipeline.predict_proba([cleaned_text])[0]
+                label = int(pipeline.predict([cleaned_text])[0])
+                
+                model_metrics = metrics.get(name, {
+                    "accuracy": 0, "f1": 0, "recall": 0, "precision": 0, "false_alarm_rate": 0,
+                    "confusion_matrix": [[0, 0], [0, 0]]
+                })
+                
+                results[name] = {
+                    "prediction": "Fake" if label == 1 else "Real",
+                    "fake_probability": float(probs[1]),
+                    "real_probability": float(probs[0]),
+                    "metrics": model_metrics,
+                    "education": EDUCATIONAL_CONTENT.get(name, {})
+                }
+            except Exception as e:
+                print(f"DEBUG: Error predicting with {name}: {e}")
     
-    # HEURISTIC: Extensively expanded categorized suspicious patterns
-    scam_categories = {
-        "health_hoax": [
-            "tiêu diệt hoàn toàn tế bào ung thư", "nước chanh nóng", "chữa khỏi bệnh", 
-            "bí mật để bán thuốc", "thần dược", "chữa bách bệnh", "thuốc nam gia truyền", 
-            "khỏi hẳn sau 7 ngày", "không cần phẫu thuật", "bác sĩ bệnh viện lớn dấu kín",
-            "bài thuốc lạ", "tế bào gốc chữa mọi bệnh"
-        ],
-        "apocalypse_hoax": [
-            "3 ngày bóng tối", "bóng tối hoàn toàn", "hệ thống điện ngừng hoạt động", 
-            "tích trữ thực phẩm", "hiện tượng vũ trụ hiếm gặp", "ngày tận thế", 
-            "thảm họa diệt vong", "tiểu hành tinh sắp va chạm", "người ngoài hành tinh xâm chiếm"
-        ],
-        "get_rich_quick": [
-            "dự đoán chính xác 100%", "kết quả xổ số", "giàu có chỉ sau vài ngày", 
-            "phần mềm ai dự đoán", "bí quyết làm giàu", "kiếm tiền tại nhà dễ dàng", 
-            "vốn ít lời nhiều", "cam kết lợi nhuận", "không làm cũng có ăn",
-            "nhận lương theo ngày", "việc nhẹ lương cao"
-        ],
-        "finance_crypto_scam": [
-            "sàn quốc tế uy tín", "nhận quà tặng tri ân", "tiền ảo sắp lên sàn", 
-            "nhân đôi tài sản", "đầu tư bao lỗ", "lãi suất 30% mỗi tháng", 
-            "liên kết với ngân hàng", "nạp tiền nhận hoa hồng", "cơ hội nghìn năm có một"
-        ],
-        "recruitment_scam": [
-            "tuyển cộng tác viên xử lý đơn hàng", "shopee tuyển dụng", "tiki tuyển dụng", 
-            "việc làm online không cần bằng cấp", "không mất phí", "đặt cọc giữ chỗ"
-        ],
-        "tech_battery_hoax": [
-            "pin phát nổ", "nạp điện liên tục suốt đêm", "nổ tung", "sạc qua đêm gây cháy",
-            "tuyệt đối không nên cắm sạc khi ngủ", "nổ sau vài tuần sử dụng", "hỏng pin hoàn toàn"
-        ],
-        "conspiracy": [
-            "bí mật bị che giấu", "bí mật bị giấu kín", "không cho bạn biết", 
-            "sự thật kinh hoàng", "phát minh chấn động", "tổ chức ngầm", 
-            "thông tin bị cấm", "không thể tin nổi", "sự thật đằng sau"
-        ]
-    }
+    if not results:
+        raise HTTPException(status_code=500, detail="Prediction failed for all models.")
     
-    # DEBUNKING KEYWORDS: Words that indicate a fact-check or correction
-    debunking_keywords = [
-        "không có bằng chứng", "tin đồn", "sai sự thật", "bác bỏ", "đính chính", 
-        "cảnh báo về", "không đúng", "giả mạo", "nasa khẳng định", "khoa học chứng minh",
-        "không thể dự đoán", "không thể", "không có khả năng", "ngẫu nhiên hoàn toàn", 
-        "chưa có nghiên cứu", "chuyên gia khẳng định", "tuy nhiên", "thực tế là",
-        "bộ công an cảnh báo", "khuyến cáo người dân", "lừa đảo chiếm đoạt tài sản",
-        "người dân cần cảnh giác", "phản bác thông tin", "theo thông tin từ bộ", 
-        "cơ quan chức năng xác nhận", "kiểm chứng thông tin", "vạch trần",
-        "mạch quản lý pin", "tự động ngắt", "chế độ sạc duy trì", "không gây nguy hiểm",
-        "theo khuyến nghị của hãng", "sạc chính hãng", "cơ chế hoạt động", "an toàn sử dụng",
-        "samsung", "apple", "người dùng yên tâm", "bảo vệ tuổi thọ pin"
-    ]
-    
-    heuristic_boost = 0.0
-    text_lower = item.text.lower()
-    
-    # Check for debunking signals first
-    is_debunking = any(keyword in text_lower for keyword in debunking_keywords)
-    
-    found_patterns = []
-    for category, patterns in scam_categories.items():
-        for pattern in patterns:
-            if pattern in text_lower:
-                # If it's a debunking article, reduce the penalty significantly
-                boost = 0.25 if not is_debunking else 0.05
-                heuristic_boost += boost
-                found_patterns.append(pattern)
-            
-    # Absolute claims check
-    if ("100%" in item.text or "chính xác tuyệt đối" in text_lower) and not is_debunking:
-        heuristic_boost += 0.3
-        
-    # If it's identified as debunking, we might even give a "Real" bias
-    if is_debunking and heuristic_boost > 0:
-        print(f"DEBUG: Debunking detected, mitigating boost from {heuristic_boost:.2f}")
-        heuristic_boost = max(0, heuristic_boost - 0.2)
-        
-    # Calculate final fake probability
-    final_fake_prob = min(0.99, fake_prob + heuristic_boost)
-    
-    # Determine Label
-    label = "Fake" if final_fake_prob >= 0.4 else "Real"
-    
-    # Generate Detailed Analysis
-    analysis_report = []
-    
-    # 1. Base ML Analysis
-    if fake_prob > 0.7:
-        analysis_report.append("Mô hình học máy phát hiện cấu trúc ngôn ngữ rất giống với các mẫu tin giả đã biết (xác suất thống kê cao).")
-    elif fake_prob < 0.3:
-        analysis_report.append("Cấu trúc câu từ và cách trình bày tương đồng với phong cách báo chí chính thống.")
-    else:
-        analysis_report.append("Ngôn ngữ bài viết nằm ở mức trung lập, có sự pha trộn giữa các đặc điểm tin tức và nội dung tự do.")
-
-    # 2. Heuristic Analysis
-    if found_patterns:
-        analysis_report.append(f"Phát hiện {len(found_patterns)} dấu hiệu nội dung nghi vấn thuộc nhóm: {', '.join(set([k for k, v in scam_categories.items() if any(p in found_patterns for p in v)]))}.")
-    
-    # 3. Context & Debunking Analysis
-    if is_debunking:
-        analysis_report.append("Hệ thống nhận diện được các tín hiệu đính chính hoặc phản biện (như 'không có bằng chứng', 'tin đồn'). Đây là cơ sở quan trọng để giảm mức độ cảnh báo.")
-    
-    if "100%" in item.text or "chính xác tuyệt đối" in text_lower:
-        if not is_debunking:
-            analysis_report.append("Bài viết sử dụng các khẳng định tuyệt đối (100%), thường là dấu hiệu của việc cường điệu hóa thông tin.")
-
-    # Conclusion Reasoning
-    if label == "Fake":
-        reasoning = "Cảnh báo dựa trên sự kết hợp giữa các từ khóa nhạy cảm và cấu trúc câu mang tính chất gây hoang mang hoặc hứa hẹn phi thực tế."
-    else:
-        reasoning = "Nội dung được đánh giá là tin cậy nhờ vào cách tiếp cận khách quan hoặc có sự xuất hiện của các từ khóa kiểm chứng khoa học/chính thống."
-
-    # Calculate final metrics
-    warning_confidence = final_fake_prob if label == "Fake" else (1.0 - final_fake_prob)
-    news_reliability = 1.0 - final_fake_prob
-
-    print(f"DEBUG: Prediction: {label} (Warning Conf: {warning_confidence:.2f}, News Reliability: {news_reliability:.2f})")
+    d2v_vector = []
+    if d2v_model:
+        d2v_vector = d2v_model.infer_vector(cleaned_text.split()).tolist()
     
     return {
-        "text": item.text,
-        "prediction": label,
-        "warning_confidence": float(warning_confidence),
-        "news_reliability": float(news_reliability),
-        "analysis": {
-            "summary": reasoning,
-            "details": analysis_report,
-            "patterns_found": found_patterns,
-            "is_fact_check": is_debunking
-        }
+        "input_text": item.text,
+        "cleaned_text": cleaned_text,
+        "results": results,
+        "doc2vec_vector": d2v_vector[:10],
+        "education_doc2vec": EDUCATIONAL_CONTENT["doc2vec"]
     }
 
-# Serve Frontend (after build)
+# Serve Frontend
 if os.path.exists("frontend/dist"):
     app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
 

@@ -1,152 +1,199 @@
-# ĐỒ ÁN: HỆ THỐNG KIỂM CHỨNG VÀ NHẬN DIỆN TIN GIẢ TIẾNG VIỆT DỰA TRÊN MÔ HÌNH HYBRID MACHINE LEARNING
+# Hệ Thống Giáo Dục & Nhận Diện Tin Giả Tiếng Việt (Vietnamese Fake News Detection & Education System)
+
+Dự án này là một nền tảng tích hợp giữa công nghệ học máy (Machine Learning) tiên tiến và môi trường giáo dục trực quan, nhằm giúp người dùng không chỉ nhận biết tin giả mà còn hiểu rõ các nguyên lý khoa học đằng sau các thuật toán AI.
 
 ---
 
-## 📖 MỤC LỤC
-*   [Phần 1. TỔNG QUAN](#phần-1-tổng-quan)
-    *   [1.1 Giới thiệu đề tài](#11-giới-thiệu-đề-tài)
-    *   [1.2 Tóm tắt lý thuyết và nghiên cứu liên quan](#12-tóm-tắt-lý-thuyết-và-nghiên-cứu-liên-quan)
-    *   [1.3 Nhiệm vụ đồ án](#13-nhiệm-vụ-đồ-án)
-    *   [1.4 Cấu trúc đồ án](#14-cấu-trúc-đồ-án)
-*   [Phần 2. CƠ SỞ LÝ THUYẾT](#phần-2-cơ-sở-lý-thuyết)
-    *   [2.1 Định nghĩa và phân loại tin giả (Fake News Taxonomy)](#21-định-nghĩa-và-phân-loại-tin-giả-fake-news-taxonomy)
-    *   [2.2 Mô tả công nghệ và hệ thống](#22-mô-tả-công-nghệ-và-hệ-thống)
-    *   [2.3 Cấu trúc thư mục và vai trò các thành phần](#23-cấu-trúc-thư-mục-và-vai-trò-các-thành-phần)
-    *   [2.4 Luồng xử lý dữ liệu chi tiết (Deep Dive Pipeline)](#24-luồng-xử-lý-dữ-liệu-chi- tiết-deep-dive-pipeline)
-    *   [2.5 Tiền xử lý văn bản tiếng Việt (NLP Preprocessing)](#25-tiền-xử-lý-văn-bản-tiếng-việt-nlp-preprocessing)
-    *   [2.6 Mô hình toán học trích xuất đặc trưng: TF-IDF & N-grams](#26-mô-hình-toán-học-trích-xuất-đặc-trưng-tf-idf--n-grams)
-    *   [2.7 Lý giải xây dựng mô hình Random Forest (Ensemble Learning)](#27-lý-giải-xây-dựng-mô-hình-random-forest-ensemble-learning)
-    *   [2.8 Hệ thống phân tích Logic Heuristic & Fact-checking](#28-hệ-thống-phân-tích-logic-heuristic--fact-checking)
-    *   [2.9 Giải pháp Hybrid: Kết hợp xác suất và Ràng buộc logic](#29-giải-pháp-hybrid-kết-hợp-xác-suất-và-ràng-buộc-logic)
-*   [Phần 3. KẾT LUẬN VÀ KIẾN NGHỊ](#phần-3-kết-luận-và-kiến-nghị)
-*   [Phần 4. THÔNG TIN THÀNH VIÊN](#phần-4-thông-tin-thành-viên)
-*   [DANH SÁCH TÀI LIỆU THAM KHẢO](#danh-sách-tài-liệu-tham-khảo)
+## 📑 Mục Lục
+1. [Tổng Quan Dự Án](#-tổng-quan-dự-án)
+2. [Hướng Dẫn Cài Đặt & Khởi Chạy](#-hướng-dẫn-cài-đặt--khởi-chạy)
+3. [Kiến Trúc Hệ Thống](#-kiến-trúc-hệ-thống)
+4. [Nền Tảng Lý Thuyết Chuyên Sâu](#-nền-tảng-lý-thuyết-chuyên-sâu)
+    - 4.1. [Xử Lý Ngôn Ngữ Tiếng Việt (underthesea)](#41-xử-lý-ngôn-ngữ-tiếng-việt-underthesea)
+    - 4.2. [Vectơ Hóa Văn Bản (TF-IDF vs Doc2Vec)](#42-vectơ-hóa-văn-bản-tf-idf-vs-doc2vec)
+    - 4.3. [Phân Tích 5 Thuật Toán Phân Loại AI](#43-phân-tích-5-thuật-toán-phân-loại-ai)
+5. [Hệ Thống Chỉ Số Đánh Giá (Metrics)](#-hệ-thống-chỉ-số-đánh-giá-metrics)
+6. [Ma Trận Nhầm Lẫn (Confusion Matrix)](#-ma-trận-nhầm-lẫn-confusion-matrix)
+7. [Giao Diện Người Dùng & Trải Nghiệm](#-giao-diện-người-dùng--trải-nghiệm)
 
 ---
 
-## Phần 1. TỔNG QUAN
+## 🚀 Tổng Quan Dự Án
 
-### 1.1 Giới thiệu đề tài
-Sự phát triển của Internet đã thay đổi cách con người tiếp nhận thông tin, nhưng đồng thời cũng tạo ra kẽ hở cho sự lan truyền của tin giả. Tại Việt Nam, tin giả thường xuất hiện dưới dạng các bài chia sẻ kinh nghiệm y khoa sai lệch, các cơ hội đầu tư tiền ảo lừa đảo hoặc tin đồn tận thế gây hoang mang dư luận. Đề tài này giải quyết bài toán cấp thiết: **Làm thế nào để máy tính có thể phân biệt được đâu là thông tin chính thống và đâu là thông tin rác?**
-
-### 1.2 Tóm tắt lý thuyết và nghiên cứu liên quan
-Các phương pháp nhận diện tin giả truyền thống thường dựa trên danh sách đen (black-list) các trang web. Tuy nhiên, phương pháp này thất bại trước các trang web mới mọc lên hàng ngày. Nghiên cứu hiện đại chuyển dịch sang **Học máy (Machine Learning)** và **Học sâu (Deep Learning)**.
-*   **Nghiên cứu của Vosoughi et al. (2018) [1]** đã chỉ ra tin giả trên mạng xã hội lan truyền nhanh hơn tin thật gấp 6 lần.
-*   **Tại Việt Nam**, thư viện `Underthesea` của nhóm nghiên cứu NLP Việt Nam [2] đã đặt nền móng cho việc xử lý ngôn ngữ tự nhiên có độ chính xác cao cho tiếng Việt, đặc biệt là bài toán tách từ (Word Segmentation).
-
-### 1.3 Nhiệm vụ đồ án
-*   **Tính cấp thiết:** Bảo vệ người dùng mạng xã hội khỏi các tác động tiêu cực của thông tin sai lệch.
-*   **Lý do hình thành:** Khắc phục nhược điểm của các mô hình AI thuần túy thường dễ bị đánh lừa bởi phong cách viết báo chính thống của tin giả.
-*   **Ý nghĩa khoa học:** Thử nghiệm mô hình lai ghép (Hybrid) kết hợp thế mạnh của thống kê (ML) và tri thức chuyên gia (Rules).
-*   **Mục tiêu:** Đạt độ phủ (Recall) tin giả trên 95%.
-*   **Phạm vi:** Tin tức tiếng Việt trong các lĩnh vực: Y tế, Tài chính, Công nghệ, Việc làm.
-
-### 1.4 Cấu trúc đồ án
-Đồ án được chia làm 4 phần chính:
-1.  **Tổng quan:** Giới thiệu bối cảnh và mục tiêu.
-2.  **Cơ sở lý thuyết:** Trình bày chi tiết toán học và kỹ thuật.
-3.  **Kết luận:** Đánh giá kết quả thực nghiệm.
-4.  **Thông tin & Tài liệu:** Trích dẫn nguồn gốc dữ liệu và công nghệ.
+Hệ thống được thiết kế để giải quyết vấn đề tin giả (Fake News) đang ngày càng tinh vi trên mạng xã hội Việt Nam. Khác với các công cụ kiểm tra thông thường, dự án này tập trung vào khía cạnh **giáo dục**:
+- **Đa mô hình:** Sử dụng đồng thời 5 thuật toán để người dùng so sánh độ chính xác.
+- **Minh họa trực quan:** Hiển thị các chỉ số toán học, sơ đồ luồng dữ liệu và lý thuyết chi tiết.
+- **Xử lý đặc thù:** Tối ưu hóa cho ngôn ngữ tiếng Việt với các thư viện chuyên dụng.
 
 ---
 
-## Phần 2. CƠ SỞ LÝ THUYẾT
+## 🛠 Hướng Dẫn Cài Đặt & Khởi Chạy
 
-### 2.1 Định nghĩa và phân loại tin giả (Fake News Taxonomy)
-Hệ thống phân loại tin giả thành các nhóm con để xử lý chuyên biệt:
-*   **Misleading Content (Nội dung gây hiểu lầm):** Sử dụng thông tin thật trong ngữ cảnh sai.
-*   **Fabricated Content (Nội dung dàn dựng):** 100% là giả (Ví dụ: Chữa ung thư bằng nước chanh).
-*   **Imposter Content (Nội dung giả danh):** Giả danh NASA, Bộ Công an để tăng độ tin cậy.
+### Yêu cầu hệ thống:
+- Python 3.8+
+- Node.js 16+
+- RAM tối thiểu 4GB (để nạp các mô hình .pkl)
 
-### 2.2 Mô tả công nghệ và hệ thống
-Hệ thống được xây dựng trên nền tảng Fullstack hiện đại:
-*   **Backend:** Python 3.12, FastAPI (framework tốc độ cao nhất hiện nay của Python).
-*   **Machine Learning:** Scikit-learn (công nghiệp tiêu chuẩn cho ML).
-*   **Frontend:** React 18, Vite (tốc độ build cực nhanh), TailwindCSS (thiết kế UI linh hoạt).
-*   **Database:** Hệ thống tệp phẳng CSV để lưu trữ dataset cho việc huấn luyện nhanh.
+### Các bước cài đặt:
 
-### 2.3 Cấu trúc thư mục và vai trò các thành phần
+1. **Cài đặt thư viện Python:**
 ```bash
-D:\BTVN LTWinS4\Fake_News_Detect\
-├── main.py                 # Core API: Tiếp nhận request và điều phối logic Hybrid
-├── data\
-│   └── fake_news.csv       # Dataset: Hơn 4.000 mẫu tin được gán nhãn thủ công
-├── models\
-│   └── fake_news_model.pkl # Model: Kết quả sau khi huấn luyện (dạng nhị phân)
-├── src\
-│   ├── preprocess.py       # NLP: Module tiền xử lý văn bản
-│   └── train.py            # Trainer: Chứa thuật toán huấn luyện và đánh giá
-└── frontend\               # UI: Toàn bộ mã nguồn giao diện React
+pip install -r requirements.txt
 ```
 
-### 2.4 Luồng xử lý dữ liệu chi tiết (Deep Dive Pipeline)
-1.  **Request Stage:** Người dùng dán văn bản vào Frontend -> Gửi đến endpoint `/predict`.
-2.  **NLP Stage:** Văn bản thô được `clean_text` làm sạch và tách từ bằng `underthesea`.
-3.  **ML Inference Stage:** Vector hóa văn bản bằng TF-IDF -> Đưa vào Random Forest để lấy xác suất thô (ML Probability).
-4.  **Heuristic Stage:** Duyệt qua 6 nhóm Scam Categories và Debunking Keywords để tính điểm phạt/thưởng (Heuristic Boost).
-5.  **Hybrid Stage:** Tổng hợp ML Prob và Heuristic Boost -> Tính toán nhãn cuối cùng (Final Label).
-6.  **Response Stage:** Trả về kết quả kèm bản giải trình chi tiết (Reasoning).
+2. **Cài đặt thư viện Frontend:**
+```bash
+cd frontend
+npm install
+```
 
-### 2.5 Tiền xử lý văn bản tiếng Việt (NLP Preprocessing)
-Tiếng Việt là ngôn ngữ đơn lập, ranh giới từ không phải lúc nào cũng là dấu cách.
-*   **Làm sạch:** Chuyển chữ thường, loại bỏ các ký tự rác không mang ngữ nghĩa.
-*   **Bảo toàn cảm xúc:** Giữ lại các dấu câu `!` và `?` để mô hình học được sự "giật gân" của tin giả.
-*   **Word Segmentation:** Sử dụng thuật toán của `underthesea` để nhóm các từ ghép (Ví dụ: "bí mật" thành "bí_mật"). Nếu không có bước này, máy tính sẽ hiểu sai nghĩa của từ.
-
-### 2.6 Mô hình toán học trích xuất đặc trưng: TF-IDF & N-grams
-Hệ thống chuyển văn bản thành vector số qua công thức TF-IDF:
-$$TF(t, d) = \frac{\text{Số lần từ t xuất hiện trong bài d}}{\text{Tổng số từ trong bài d}}$$
-$$IDF(t, D) = \log\left(\frac{\text{Tổng số bài báo D}}{\text{Số bài báo chứa từ t}}\right)$$
-**N-grams (1, 3):** Cho phép mô hình nhìn thấy các cụm từ quan trọng như "lừa_đảo_tài_chính" thay vì chỉ nhìn riêng lẻ từng từ "lừa", "đảo".
-
-### 2.7 Lý giải xây dựng mô hình Random Forest (Ensemble Learning)
-Hệ thống sử dụng **Random Forest** thay vì Logistic Regression truyền thống bởi:
-*   **Bagging (Bootstrap Aggregating):** Giúp mô hình học từ các tập con ngẫu nhiên của dữ liệu, giảm thiểu nhiễu.
-*   **Feature Randomness:** Mỗi cây quyết định chỉ được nhìn một số đặc trưng ngẫu nhiên, giúp mô hình đa dạng hóa cách nhìn nhận vấn đề.
-*   **Gini Impurity:** Thuật toán tự động tìm ra những từ khóa có khả năng phân loại tin giả tốt nhất để ưu tiên kiểm tra.
-
-### 2.8 Hệ thống phân tích Logic Heuristic & Fact-checking
-Đây là giải pháp độc đáo để xử lý các tin tức "quá mới" hoặc "quá phi lý":
-*   **Scam Categories:** Phân tích từ vựng thuộc 6 nhóm rủi ro: Y tế, Thiên tai, Làm giàu nhanh, Tiền ảo, Tuyển dụng và Thuyết âm mưu.
-*   **Debunking Detection:** Nhận diện ngữ cảnh đính chính (Ví dụ: "Bộ Y tế bác bỏ thông tin..."). Nếu bài viết nhắc đến tin giả nhưng với mục đích bác bỏ, hệ thống sẽ đánh giá đó là **Tin thật**.
-
-### 2.9 Giải pháp Hybrid: Kết hợp xác suất và Ràng buộc logic
-Mô hình cuối cùng tuân theo công thức ràng buộc:
-$$P_{final} = \min(0.99, P_{ML} + \sum Boost_{heuristic})$$
-Trong đó:
-*   $P_{ML}$: Xác suất do AI dự đoán dựa trên phong cách viết.
-*   $Boost_{heuristic}$: Điểm phạt cho các nội dung phi lý đã được định danh.
-Giải pháp này giúp hệ thống đạt độ chính xác **99%** trong việc nhận diện các mẫu tin giả nguy hiểm.
+3. **Khởi chạy hệ thống:**
+Sử dụng file batch tích hợp:
+```bash
+run_all.bat
+```
+Hoặc chạy thủ công:
+- Backend: `python main.py`
+- Frontend: `cd frontend && npm run dev`
 
 ---
 
-## Phần 3. KẾT LUẬN VÀ KIẾN NGHỊ
+## 🏗 Kiến Trúc Hệ Thống
 
-### Kết luận
-Dự án đã hoàn thành mục tiêu xây dựng một công cụ kiểm chứng tin tức thông minh. Sự kết hợp giữa **Machine Learning** và **Heuristic Logic** đã chứng minh được tính hiệu quả vượt trội so với các phương pháp đơn lẻ, đặc biệt là trong việc giảm tỷ lệ nhận nhầm (False Positive) các bài viết đính chính khoa học.
-
-### Đóng góp đạt được
-*   Phát triển thành công mô hình lai (Hybrid) cho tiếng Việt.
-*   Xây dựng bộ từ khóa nhận diện tin giả toàn diện nhất cho các kịch bản lừa đảo phổ biến tại Việt Nam năm 2024-2025.
-*   Giao diện người dùng minh bạch, có bản giải trình chi tiết về "quy trình tư duy" của AI.
-
-### Kiến nghị
-*   **Cập nhật dữ liệu:** Cần bổ sung dữ liệu tin giả hàng ngày để mô hình không bị lạc hậu.
-*   **Deep Learning:** Khuyến nghị nâng cấp lên các mô hình Transformer (như BERT) nếu có tài nguyên phần cứng tốt hơn trong tương lai.
+Dữ liệu di chuyển qua các tầng sau:
+1. **Tầng Thu Thập:** Tiếp nhận văn bản thô từ người dùng.
+2. **Tầng Tiền Xử Lý:** Sử dụng `underthesea` để tách từ và `regex` để làm sạch dữ liệu.
+3. **Tầng Vectơ Hóa:** Chuyển văn bản thành các dãy số (TF-IDF cho tính thống kê, Doc2Vec cho tính ngữ nghĩa).
+4. **Tầng Dự Đoán:** 5 mô hình (SVM, LR, RF, DT, NB) thực hiện phân loại song song.
+5. **Tầng Hiển Thị:** React Vite hiển thị kết quả, xác suất và nội dung giáo dục.
 
 ---
 
-## Phần 4. THÔNG TIN THÀNH VIÊN
-*   **Họ và tên:** Lê Huỳnh Ngọc
-*   **Giáo viên hướng dẫn:** TS. Phạm Thế Anh Phú
-*   **Đồ án:** Hệ thống nhận diện tin giả tiếng Việt - 2026.
+## 📚 Nền Tảng Lý Thuyết Chuyên Sâu
+
+### 4.1. Xử Lý Ngôn Ngữ Tiếng Việt (underthesea)
+
+Tiếng Việt là ngôn ngữ đơn lập, không có hình thái từ, ranh giới giữa các từ không được xác định rõ ràng chỉ bằng khoảng trắng.
+
+**A. Tokenization (Tách từ):**
+Thư viện `underthesea` sử dụng mô hình CRF (Conditional Random Fields) để dự đoán ranh giới từ.
+- *Ví dụ:* "Học sinh học sinh học" -> `["Học_sinh", "học", "sinh_học"]`.
+- *Tầm quan trọng:* Nếu tách sai thành `["Học", "sinh"]`, máy sẽ không biết đây là đối tượng con người.
+
+**B. Data Cleaning:**
+- **Lowercase:** Chuyển "Sốc" thành "sốc" để giảm kích thước từ điển.
+- **Punctuation Removal:** Loại bỏ các ký tự nhiễu như `#, @, $, ...` nhưng giữ lại `!` và `?` vì chúng thường mang sắc thái biểu cảm mạnh trong tin giả.
 
 ---
 
-## DANH SÁCH TÀI LIỆU THAM KHẢO
+### 4.2. Vectơ Hóa Văn Bản (TF-IDF vs Doc2Vec)
 
-1.  **Vosoughi, S., Roy, D., & Aral, S. (2018).** *The spread of true and false news online*. Science, 359(6380), 1146-1151. [Link bài báo](https://www.science.org/doi/10.1126/science.aap9559). (Truy cập: 07/03/2026).
-2.  **Underthesea Team.** *Vietnamese Natural Language Processing Toolkit*. [https://github.com/undertheseanlp/underthesea](https://github.com/undertheseanlp/underthesea). (Truy cập: 07/03/2026).
-3.  **FastAPI Framework.** *Documentation on high-performance Python APIs*. [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/). (Truy cập: 07/03/2026).
-4.  **Scikit-Learn.** *Random Forest Classifier Documentation*. [https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html). (Truy cập: 07/03/2026).
-5.  **Cục An toàn thông tin - Bộ Thông tin và Truyền thông.** *Cổng không gian mạng quốc gia - Nhận diện tin giả*. [https://khonggianmang.vn/](https://khonggianmang.vn/). (Truy cập: 07/03/2026).
+#### A. TF-IDF (Thống kê trọng số từ)
+TF-IDF đánh giá tầm quan trọng của một từ $t$ trong một văn bản $d$ thuộc tập hợp văn bản $D$.
+
+**Công thức:**
+1. **Term Frequency (TF):** 
+   $$TF(t, d) = \frac{n_{t,d}}{\sum_{k} n_{k,d}}$$
+   (Tần suất xuất hiện của từ trong bài báo).
+
+2. **Inverse Document Frequency (IDF):**
+   $$IDF(t) = \log\left(\frac{N}{df_t}\right)$$
+   (N là tổng số bài, $df_t$ là số bài có chứa từ t. Chỉ số này giúp hạ thấp trọng số của các từ quá phổ biến).
+
+3. **Trọng số cuối cùng:**
+   $$W = TF \times IDF$$
+
+#### B. Doc2Vec (Ngữ nghĩa sâu)
+Dựa trên kiến trúc PV-DM (Distributed Memory version of Paragraph Vector).
+- **Cơ chế:** Mỗi văn bản được gán một vector định danh (Paragraph ID). Trong quá trình huấn luyện mạng nơ-ron, Paragraph ID sẽ cùng với các từ xung quanh tham gia vào việc dự đoán từ tiếp theo.
+- **Kết quả:** Các bài báo có chủ đề hoặc phong cách viết giống nhau (dù không dùng chung từ ngữ) sẽ có khoảng cách Cosine giữa hai vector rất ngắn.
+
+---
+
+### 4.3. Phân Tích 5 Thuật Toán Phân Loại AI
+
+#### 1. Logistic Regression (Hồi quy Logistic)
+- **Nguyên lý:** Sử dụng một hàm tuyến tính $z = w^Tx + b$ sau đó đưa qua hàm Sigmoid.
+- **Công thức Sigmoid:** 
+  $$\sigma(z) = \frac{1}{1 + e^{-z}}$$
+- **Đặc điểm:** Phù hợp nhất cho các bài toán phân loại nhị phân (Thật/Giả). Nó cho biết xác suất (ví dụ: 0.85 là 85% khả năng là tin giả).
+
+#### 2. Support Vector Machine (SVM)
+- **Nguyên lý:** Tìm một siêu phẳng (Hyperplane) trong không gian n-chiều để phân tách hai lớp dữ liệu sao cho **Margin** (khoảng cách đến các điểm gần nhất) là lớn nhất.
+- **Mục tiêu:** 
+  $$\text{Maximize } \frac{2}{\|w\|}$$
+- **Ưu điểm:** Cực kỳ mạnh mẽ khi số lượng đặc trưng (từ vựng) nhiều hơn số lượng mẫu dữ liệu.
+
+#### 3. Random Forest (Rừng Ngẫu Nhiên)
+- **Nguyên lý:** Là thuật toán **Ensemble Learning** kiểu Bagging. Nó xây dựng hàng trăm cây quyết định (Decision Trees) độc lập.
+- **Cơ chế:** Mỗi cây sẽ được huấn luyện trên một tập con ngẫu nhiên của dữ liệu và đặc trưng. Khi dự đoán, hệ thống sẽ lấy "phiếu bầu" đa số từ tất cả các cây.
+- **Lợi ích:** Tránh hiện tượng Overfitting (quá khớp) và rất ổn định với dữ liệu nhiễu.
+
+#### 4. Decision Tree (Cây Quyết Định)
+- **Nguyên lý:** Xây dựng một cấu trúc phân cấp các câu hỏi. Tại mỗi nút, nó chọn đặc trưng (từ khóa) có **Information Gain** (Độ lợi thông tin) cao nhất để phân loại.
+- **Công thức Entropy:** 
+  $$H(S) = -\sum p_i \log_2(p_i)$$
+- **Đặc điểm:** Cực kỳ trực quan, giúp người dùng thấy rõ AI đã chọn từ khóa nào để "nghi ngờ" tin tức.
+
+#### 5. Naive Bayes (Bayes Ngây Thơ)
+- **Nguyên lý:** Dựa trên định lý Bayes với giả định rằng sự hiện diện của một từ trong văn bản là độc lập với các từ khác.
+- **Định lý Bayes:**
+  $$P(Fake|Text) = \frac{P(Text|Fake) \times P(Fake)}{P(Text)}$$
+- **Đặc điểm:** Hoạt động rất tốt với văn bản ngắn và cần ít dữ liệu huấn luyện hơn các mô hình phức tạp.
+
+---
+
+## 📈 Hệ Thống Chỉ Số Đánh Giá (Metrics)
+
+Trong phát hiện tin giả, chúng ta không thể chỉ dựa vào Accuracy (Độ chính xác tổng quát).
+
+1. **Accuracy (Độ chính xác tổng):**
+   $$Acc = \frac{TP + TN}{TP + TN + FP + FN}$$
+   (Tỷ lệ dự đoán đúng trên toàn bộ tập dữ liệu).
+
+2. **Precision (Độ chuẩn xác):**
+   $$P = \frac{TP}{TP + FP}$$
+   (Trả lời câu hỏi: "Trong số các bài AI báo là tin giả, có bao nhiêu bài thật sự là tin giả?"). Chỉ số này cao giúp tránh việc báo oan cho tin thật.
+
+3. **Recall (Độ phủ/Độ nhạy):**
+   $$R = \frac{TP}{TP + FN}$$
+   (Trả lời câu hỏi: "Hệ thống bắt được bao nhiêu phần trăm tổng số tin giả thực tế?"). Chỉ số này cao giúp không bỏ lọt tin giả độc hại.
+
+4. **F1-Score (Điểm cân bằng):**
+   $$F1 = 2 \times \frac{P \times R}{P + R}$$
+   (Trung bình điều hòa giữa Precision và Recall. Đây là chỉ số đáng tin cậy nhất khi tập dữ liệu bị mất cân bằng giữa tin thật và giả).
+
+5. **False Alarm Rate (Tỷ lệ báo động giả):**
+   $$FAR = \frac{FP}{FP + TN}$$
+   (Tỷ lệ tin thật bị gán nhãn nhầm là tin giả. Đây là thông số sống còn trong uy tín của hệ thống).
+
+---
+
+## 🧱 Ma Trận Nhầm Lẫn (Confusion Matrix)
+
+Đây là bảng thống kê chi tiết các trường hợp:
+
+- **True Positive (TP):** Tin giả và AI đoán đúng là giả. (Thành công ✅)
+- **True Negative (TN):** Tin thật và AI đoán đúng là thật. (Thành công ✅)
+- **False Positive (FP):** Tin thật nhưng AI đoán là giả. (Sai lầm "Oan sai" ❌)
+- **False Negative (FN):** Tin giả nhưng AI đoán là thật. (Sai lầm "Nguy hiểm" ❌)
+
+---
+
+## 🎨 Giao Diện Người Dùng & Trải Nghiệm
+
+Hệ thống cung cấp 2 chế độ:
+1. **Detector Mode:** Người dùng nhập tin, nhận kết quả từ 5 mô hình đồng thời, xem biểu đồ xác suất và vector Doc2Vec.
+2. **Theory Academy:** Trang lý thuyết tương tác với Sidebar, cung cấp mọi định nghĩa và công thức toán học nêu trên một cách trực quan.
+
+---
+
+## 🛠 Công Nghệ Sử Dụng
+
+- **Backend:** Python, FastAPI, Scikit-learn, Joblib, Gensim (Doc2Vec), Underthesea.
+- **Frontend:** React.js, Vite, Tailwind CSS, Axios, Framer Motion (Animations).
+- **Data:** Dataset tin tức tiếng Việt (~21,000 dòng).
+
+---
+
+© 2026 Vietnamese Fake News Detection Project. Đóng góp bởi cộng đồng nghiên cứu AI giáo dục.
