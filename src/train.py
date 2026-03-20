@@ -16,7 +16,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
+from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_score, recall_score
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 
 # Chan cac canh bao va log he thong de hien thi sach se
@@ -64,7 +64,7 @@ def train_all_models(data_path, models_dir):
     print(f"    + Tap Huan luyen (Train): {len(X_train)} mau")
     print(f"    + Tap Kiem thu (Test): {len(X_test)} mau")
 
-    # --- BUOC 3: TF-IDF VECTORIZATION (CHI TIET HON) ---
+    # --- BUOC 3: TF-IDF VECTORIZATION ---
     print_header(3, "Trich xuat dac trung van ban (TF-IDF)")
     start_tfidf = time.time()
     
@@ -81,10 +81,14 @@ def train_all_models(data_path, models_dir):
     joblib.dump(tfidf_vectorizer, os.path.join(models_dir, "tfidf_vectorizer.pkl"))
     
     print(f"  - Hoan tat. Thoi gian thuc hien: {time.time() - start_tfidf:.2f}s")
-    print(f"  - Trang thai: Da san sang {vocab_size} dac trung cho cac buoc sau.")
 
     # --- BUOC 4: DOC2VEC ---
     print_header(4, "Xay dung Vector dai dien (Doc2Vec)")
+    print(f"  [GIAI THICH]: Doc2Vec bien van ban thanh mot day so (Vector).")
+    print(f"  - Vector Size (100): Moi cau se duoc dai dien bang 100 con so dac trung.")
+    print(f"  - Window (5): AI se nhin xung quanh 5 tu de hieu ngu canh cua tu o giua.")
+    print(f"  - Epochs (40): AI se doc di doc lai du lieu 40 lan de toi uu hoa tri nho.")
+    
     start_d2v = time.time()
     tagged_data = [TaggedDocument(words=text.split(), tags=[str(i)]) for i, text in enumerate(X)]
     
@@ -92,7 +96,6 @@ def train_all_models(data_path, models_dir):
     print(f"  - Dang khoi tao tu vung (Vocabulary size: {len(X)} docs)...")
     d2v_model.build_vocab(tagged_data)
     
-    # Training voi thanh tien trinh Epoch
     print(f"  - Dang huan luyen Vector hoa:")
     pbar = tqdm(total=40, desc="    Tien do huan luyen (%)")
     for epoch in range(40):
@@ -119,30 +122,40 @@ def train_all_models(data_path, models_dir):
         print(f"\n  ({i+1}/{len(classifiers)}) --- {full_name.upper()} ---")
         start_step = time.time()
         
-        # Thong tin du lieu vao cho model nay
-        print(f"    [1] Chuan bi: Su dung {vocab_size} dac trung TF-IDF...")
-        
         pipeline = Pipeline([
             ('tfidf', TfidfVectorizer(max_features=5000, vocabulary=tfidf_vectorizer.vocabulary_)),
             ('clf', clf)
         ])
         
-        print(f"    [2] Thuc thi: Dang huan luyen thuat toan tren {len(X_train)} mau...")
+        print(f"    [1] Thuc thi: Dang huan luyen thuat toan...")
         pipeline.fit(X_train, y_train)
         
-        print(f"    [3] Danh gia: Dang kiem thu tren {len(X_test)} mau...")
+        print(f"    [2] Danh gia: Dang tinh toan cac chi so kiem thu...")
         y_pred = pipeline.predict(X_test)
+        
+        # Tinh toan day du cac chi so cho Frontend
         acc = accuracy_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred, zero_division=0)
+        prec = precision_score(y_test, y_pred, zero_division=0)
+        rec = recall_score(y_test, y_pred, zero_division=0)
+        
+        # Tinh Báo động giả (False Alarm Rate)
+        cm = confusion_matrix(y_test, y_pred)
+        tn, fp, fn, tp = cm.ravel()
+        far = fp / (fp + tn) if (fp + tn) > 0 else 0
         
         duration = time.time() - start_step
-        print(f"    [4] Ket qua: Accuracy = {acc*100:.2f}% | F1 = {f1*100:.2f}%")
-        print(f"    [5] Thoi gian: {duration:.2f} giay")
+        print(f"    [3] Ket qua: Acc={acc*100:.1f}% | Precision={prec*100:.1f}% | Recall={rec*100:.1f}%")
+        print(f"    [4] Thoi gian: {duration:.2f} giay")
         
         models_info[short_name] = {
             "accuracy": float(acc),
             "f1": float(f1),
-            "duration": float(duration)
+            "precision": float(prec),
+            "recall": float(rec),
+            "false_alarm_rate": float(far),
+            "duration": float(duration),
+            "confusion_matrix": cm.tolist()
         }
         joblib.dump(pipeline, os.path.join(models_dir, f"{short_name}.pkl"))
 
@@ -150,12 +163,11 @@ def train_all_models(data_path, models_dir):
     print_header(6, "Luu tru bao cao Metrics")
     with open(os.path.join(models_dir, "models_metrics.json"), "w") as f:
         json.dump(models_info, f, indent=4)
-    print(f"  - Da cap nhat tep tin: models/models_metrics.json")
+    print(f"  - Da cap nhat tep tin: models/models_metrics.json (San sang cho Frontend)")
 
     # --- BUOC 7: TONG KET ---
     print_header(7, "Tong ket toan bo quy trinh")
     print(f"  - Tong thoi gian chay: {time.time() - start_total:.2f} giay")
-    print(f"  - Trang thai: Tat ca mo hinh da duoc toi uu va luu tru.")
     print("="*80 + "\n")
 
 if __name__ == "__main__":

@@ -132,10 +132,16 @@ def predict(item: NewsItem):
                 probs = pipeline.predict_proba([cleaned_text])[0]
                 label = int(pipeline.predict([cleaned_text])[0])
                 
-                model_metrics = metrics.get(name, {
-                    "accuracy": 0, "f1": 0, "recall": 0, "precision": 0, "false_alarm_rate": 0,
-                    "confusion_matrix": [[0, 0], [0, 0]]
-                })
+                # Lay metrics va dam bao khong bi thieu truong
+                raw_metrics = metrics.get(name, {})
+                model_metrics = {
+                    "accuracy": float(raw_metrics.get("accuracy", 0)),
+                    "f1": float(raw_metrics.get("f1", 0)),
+                    "recall": float(raw_metrics.get("recall", 0)),
+                    "precision": float(raw_metrics.get("precision", 0)),
+                    "false_alarm_rate": float(raw_metrics.get("false_alarm_rate", 0)),
+                    "confusion_matrix": raw_metrics.get("confusion_matrix", [[0, 0], [0, 0]])
+                }
                 
                 results[name] = {
                     "prediction": "Fake" if label == 1 else "Real",
