@@ -7,13 +7,10 @@ Dự án này là một nền tảng tích hợp giữa công nghệ học máy 
 ## 📑 Mục Lục
 1. [Tổng Quan Dự Án](#-tổng-quan-dự-án)
 2. [Hướng Dẫn Cài Đặt & Khởi Chạy](#-hướng-dẫn-cài-đặt--khởi-chạy)
-3. [Kiến Trúc Hệ Thống](#-kiến-trúc-hệ-thống)
-4. [Nền Tảng Lý Thuyết Chuyên Sâu](#-nền-tảng-lý-thuyết-chuyên-sâu)
-    - 4.1. [Xử Lý Ngôn Ngữ Tiếng Việt (underthesea)](#41-xử-lý-ngôn-ngữ-tiếng-việt-underthesea)
-    - 4.2. [Vectơ Hóa Văn Bản (TF-IDF vs Doc2Vec)](#42-vectơ-hóa-văn-bản-tf-idf-vs-doc2vec)
-    - 4.3. [Phân Tích 5 Thuật Toán Phân Loại AI](#43-phân-tích-5-thuật-toán-phân-loại-ai)
-5. [Hệ Thống Chỉ Số Đánh Giá (Metrics)](#-hệ-thống-chỉ-số-đánh-giá-metrics)
-6. [Ma Trận Nhầm Lẫn (Confusion Matrix)](#-ma-trận-nhầm-lẫn-confusion-matrix)
+3. [Quy Trình Huấn Luyện AI Chuyên Sâu](#-quy-trình-huấn-luyện-ai-chuyên-sâu)
+4. [Kiến Trúc Hệ Thống](#-kiến-trúc-hệ-thống)
+5. [Nền Tảng Lý Thuyết Chuyên Sâu](#-nền-tảng-lý-thuyết-chuyên-sâu)
+6. [Hệ Thống Chỉ Số Đánh Giá (Metrics)](#-hệ-thống-chỉ-số-đánh-giá-metrics)
 7. [Giao Diện Người Dùng & Trải Nghiệm](#-giao-diện-người-dùng--trải-nghiệm)
 
 ---
@@ -24,37 +21,48 @@ Hệ thống được thiết kế để giải quyết vấn đề tin giả (F
 - **Đa mô hình:** Sử dụng đồng thời 5 thuật toán để người dùng so sánh độ chính xác.
 - **Minh họa trực quan:** Hiển thị các chỉ số toán học, sơ đồ luồng dữ liệu và lý thuyết chi tiết.
 - **Xử lý đặc thù:** Tối ưu hóa cho ngôn ngữ tiếng Việt với các thư viện chuyên dụng.
+- **Minh bạch quy trình:** Toàn bộ quá trình từ dữ liệu thô đến mô hình hoàn chỉnh được báo cáo chi tiết.
 
 ---
 
 ## 🛠 Hướng Dẫn Cài Đặt & Khởi Chạy
 
+Hệ thống đã được tối ưu hóa với các file batch tự động kiểm tra và cài đặt môi trường.
+
 ### Yêu cầu hệ thống:
-- Python 3.8+
-- Node.js 16+
-- RAM tối thiểu 4GB (để nạp các mô hình .pkl)
+- **Windows OS** (Hỗ trợ tốt nhất cho các file .bat)
+- **Python 3.8+**
+- **Node.js 16+**
 
-### Các bước cài đặt:
+### Cách khởi chạy nhanh:
 
-1. **Cài đặt thư viện Python:**
-```bash
-pip install -r requirements.txt
-```
-
-2. **Cài đặt thư viện Frontend:**
-```bash
-cd frontend
-npm install
-```
-
-3. **Khởi chạy hệ thống:**
-Sử dụng file batch tích hợp:
+1. **Khởi chạy toàn bộ hệ thống (All-in-One):**
+Chỉ cần chạy file sau, hệ thống sẽ tự động kiểm tra Python, NPM, cài đặt thư viện thiếu và mở trình duyệt:
 ```bash
 run_all.bat
 ```
-Hoặc chạy thủ công:
-- Backend: `python main.py`
-- Frontend: `cd frontend && npm run dev`
+
+2. **Huấn luyện lại AI (Nếu có dữ liệu mới):**
+Nếu bạn cập nhật thêm tin tức vào `data/fake_news.csv`, hãy chạy file này để cập nhật "bộ não" cho hệ thống:
+```bash
+train_ai.bat
+```
+
+---
+
+## 🧠 Quy Trình Huấn Luyện AI Chuyên Sâu (7 Bước)
+
+Hệ thống sử dụng một quy trình huấn luyện nghiêm ngặt gồm 7 bước, đảm bảo tính khoa học và minh bạch:
+
+1. **Đọc dữ liệu nguồn:** Phân tích cấu trúc file CSV, thống kê số lượng mẫu tin thật/giả và kiểm tra tính toàn vẹn.
+2. **Tiền xử lý (Preprocessing):** Sử dụng `underthesea` để tách từ tiếng Việt, làm sạch nhiễu và chuẩn hóa văn bản.
+3. **Trích xuất đặc trưng (TF-IDF):** Phân tích tần suất từ và tầm quan trọng của chúng. Lưu trữ `tfidf_vectorizer.pkl` cho Backend.
+4. **Vectơ hóa ngữ nghĩa (Doc2Vec):** Chuyển câu văn thành không gian 100 chiều để AI hiểu được ngữ cảnh sâu xa.
+5. **Huấn luyện Đa mô hình (Classifiers):** 
+    - Chạy song song 5 thuật toán: **Logistic Regression, SVM, Random Forest, Naive Bayes, Decision Tree**.
+    - Báo cáo tiến độ (%) và thời gian thực hiện của từng mô hình.
+6. **Lưu trữ báo cáo (Metrics):** Xuất toàn bộ chỉ số Precision, Recall, F1 vào `models_metrics.json`.
+7. **Tổng kết hệ thống:** Báo cáo tổng thời gian và trạng thái sẵn sàng của các file mô hình `.pkl`.
 
 ---
 
@@ -62,137 +70,52 @@ Hoặc chạy thủ công:
 
 Dữ liệu di chuyển qua các tầng sau:
 1. **Tầng Thu Thập:** Tiếp nhận văn bản thô từ người dùng.
-2. **Tầng Tiền Xử Lý:** Sử dụng `underthesea` để tách từ và `regex` để làm sạch dữ liệu.
-3. **Tầng Vectơ Hóa:** Chuyển văn bản thành các dãy số (TF-IDF cho tính thống kê, Doc2Vec cho tính ngữ nghĩa).
-4. **Tầng Dự Đoán:** 5 mô hình (SVM, LR, RF, DT, NB) thực hiện phân loại song song.
-5. **Tầng Hiển Thị:** React Vite hiển thị kết quả, xác suất và nội dung giáo dục.
+2. **Tầng Tiền Xử Lý:** Sử dụng `underthesea` để tách từ và Chuẩn hóa (Normalization).
+3. **Tầng Vectơ Hóa:** TF-IDF (Tính toán trọng số từ) & Doc2Vec (Vectơ hóa ngữ nghĩa).
+4. **Tầng Dự Đoán:** 5 mô hình thực hiện phân loại song song và trả về xác suất tin giả.
+5. **Tầng Hiển Thị:** Frontend React hiển thị kết quả kèm theo các giải thích giáo dục tương ứng.
 
 ---
 
-## 📚 Nền Tảng Lý Thuyết Chuyên Sâu
+## 📚 Nền Tảng Lý Thuyết & Thuật Toán
 
-### 4.1. Xử Lý Ngôn Ngữ Tiếng Việt (underthesea)
+### 5.1. Vectơ Hóa Văn Bản (TF-IDF vs Doc2Vec)
+- **TF-IDF:** Tính toán dựa trên tần suất từ (Term Frequency) và nghịch đảo tần suất văn bản (Inverse Document Frequency). Giúp xác định các từ khóa "đắt giá" trong tin tức.
+- **Doc2Vec:** Sử dụng mạng nơ-ron để gán cho mỗi bài báo một "tọa độ" trong không gian vector. Các bài báo có nội dung tương tự sẽ nằm gần nhau về mặt toán học.
 
-Tiếng Việt là ngôn ngữ đơn lập, không có hình thái từ, ranh giới giữa các từ không được xác định rõ ràng chỉ bằng khoảng trắng.
-
-**A. Tokenization (Tách từ):**
-Thư viện `underthesea` sử dụng mô hình CRF (Conditional Random Fields) để dự đoán ranh giới từ.
-- *Ví dụ:* "Học sinh học sinh học" -> `["Học_sinh", "học", "sinh_học"]`.
-- *Tầm quan trọng:* Nếu tách sai thành `["Học", "sinh"]`, máy sẽ không biết đây là đối tượng con người.
-
-**B. Data Cleaning:**
-- **Lowercase:** Chuyển "Sốc" thành "sốc" để giảm kích thước từ điển.
-- **Punctuation Removal:** Loại bỏ các ký tự nhiễu như `#, @, $, ...` nhưng giữ lại `!` và `?` vì chúng thường mang sắc thái biểu cảm mạnh trong tin giả.
-
----
-
-### 4.2. Vectơ Hóa Văn Bản (TF-IDF vs Doc2Vec)
-
-#### A. TF-IDF (Thống kê trọng số từ)
-TF-IDF đánh giá tầm quan trọng của một từ $t$ trong một văn bản $d$ thuộc tập hợp văn bản $D$.
-
-**Công thức:**
-1. **Term Frequency (TF):** 
-   $$TF(t, d) = \frac{n_{t,d}}{\sum_{k} n_{k,d}}$$
-   (Tần suất xuất hiện của từ trong bài báo).
-
-2. **Inverse Document Frequency (IDF):**
-   $$IDF(t) = \log\left(\frac{N}{df_t}\right)$$
-   (N là tổng số bài, $df_t$ là số bài có chứa từ t. Chỉ số này giúp hạ thấp trọng số của các từ quá phổ biến).
-
-3. **Trọng số cuối cùng:**
-   $$W = TF \times IDF$$
-
-#### B. Doc2Vec (Ngữ nghĩa sâu)
-Dựa trên kiến trúc PV-DM (Distributed Memory version of Paragraph Vector).
-- **Cơ chế:** Mỗi văn bản được gán một vector định danh (Paragraph ID). Trong quá trình huấn luyện mạng nơ-ron, Paragraph ID sẽ cùng với các từ xung quanh tham gia vào việc dự đoán từ tiếp theo.
-- **Kết quả:** Các bài báo có chủ đề hoặc phong cách viết giống nhau (dù không dùng chung từ ngữ) sẽ có khoảng cách Cosine giữa hai vector rất ngắn.
-
----
-
-### 4.3. Phân Tích 5 Thuật Toán Phân Loại AI
-
-#### 1. Logistic Regression (Hồi quy Logistic)
-- **Nguyên lý:** Sử dụng một hàm tuyến tính $z = w^Tx + b$ sau đó đưa qua hàm Sigmoid.
-- **Công thức Sigmoid:** 
-  $$\sigma(z) = \frac{1}{1 + e^{-z}}$$
-- **Đặc điểm:** Phù hợp nhất cho các bài toán phân loại nhị phân (Thật/Giả). Nó cho biết xác suất (ví dụ: 0.85 là 85% khả năng là tin giả).
-
-#### 2. Support Vector Machine (SVM)
-- **Nguyên lý:** Tìm một siêu phẳng (Hyperplane) trong không gian n-chiều để phân tách hai lớp dữ liệu sao cho **Margin** (khoảng cách đến các điểm gần nhất) là lớn nhất.
-- **Mục tiêu:** 
-  $$\text{Maximize } \frac{2}{\|w\|}$$
-- **Ưu điểm:** Cực kỳ mạnh mẽ khi số lượng đặc trưng (từ vựng) nhiều hơn số lượng mẫu dữ liệu.
-
-#### 3. Random Forest (Rừng Ngẫu Nhiên)
-- **Nguyên lý:** Là thuật toán **Ensemble Learning** kiểu Bagging. Nó xây dựng hàng trăm cây quyết định (Decision Trees) độc lập.
-- **Cơ chế:** Mỗi cây sẽ được huấn luyện trên một tập con ngẫu nhiên của dữ liệu và đặc trưng. Khi dự đoán, hệ thống sẽ lấy "phiếu bầu" đa số từ tất cả các cây.
-- **Lợi ích:** Tránh hiện tượng Overfitting (quá khớp) và rất ổn định với dữ liệu nhiễu.
-
-#### 4. Decision Tree (Cây Quyết Định)
-- **Nguyên lý:** Xây dựng một cấu trúc phân cấp các câu hỏi. Tại mỗi nút, nó chọn đặc trưng (từ khóa) có **Information Gain** (Độ lợi thông tin) cao nhất để phân loại.
-- **Công thức Entropy:** 
-  $$H(S) = -\sum p_i \log_2(p_i)$$
-- **Đặc điểm:** Cực kỳ trực quan, giúp người dùng thấy rõ AI đã chọn từ khóa nào để "nghi ngờ" tin tức.
-
-#### 5. Naive Bayes (Bayes Ngây Thơ)
-- **Nguyên lý:** Dựa trên định lý Bayes với giả định rằng sự hiện diện của một từ trong văn bản là độc lập với các từ khác.
-- **Định lý Bayes:**
-  $$P(Fake|Text) = \frac{P(Text|Fake) \times P(Fake)}{P(Text)}$$
-- **Đặc điểm:** Hoạt động rất tốt với văn bản ngắn và cần ít dữ liệu huấn luyện hơn các mô hình phức tạp.
+### 5.2. Các Thuật Toán AI Chủ Đạo
+- **SVM:** Tìm siêu phẳng tối ưu để chia tách dữ liệu.
+- **Logistic Regression:** Dự đoán xác suất dựa trên hàm Sigmoid (0 đến 1).
+- **Random Forest:** Kết hợp kết quả từ 100 cây quyết định để đưa ra lựa chọn chính xác nhất.
+- **Naive Bayes:** Dựa trên xác suất thống kê Bayes (cực nhanh và hiệu quả với văn bản ngắn).
+- **Decision Tree:** Chia nhỏ dữ liệu theo các câu hỏi từ khóa quan trọng.
 
 ---
 
 ## 📈 Hệ Thống Chỉ Số Đánh Giá (Metrics)
 
-Trong phát hiện tin giả, chúng ta không thể chỉ dựa vào Accuracy (Độ chính xác tổng quát).
-
-1. **Accuracy (Độ chính xác tổng):**
-   $$Acc = \frac{TP + TN}{TP + TN + FP + FN}$$
-   (Tỷ lệ dự đoán đúng trên toàn bộ tập dữ liệu).
-
-2. **Precision (Độ chuẩn xác):**
-   $$P = \frac{TP}{TP + FP}$$
-   (Trả lời câu hỏi: "Trong số các bài AI báo là tin giả, có bao nhiêu bài thật sự là tin giả?"). Chỉ số này cao giúp tránh việc báo oan cho tin thật.
-
-3. **Recall (Độ phủ/Độ nhạy):**
-   $$R = \frac{TP}{TP + FN}$$
-   (Trả lời câu hỏi: "Hệ thống bắt được bao nhiêu phần trăm tổng số tin giả thực tế?"). Chỉ số này cao giúp không bỏ lọt tin giả độc hại.
-
-4. **F1-Score (Điểm cân bằng):**
-   $$F1 = 2 \times \frac{P \times R}{P + R}$$
-   (Trung bình điều hòa giữa Precision và Recall. Đây là chỉ số đáng tin cậy nhất khi tập dữ liệu bị mất cân bằng giữa tin thật và giả).
-
-5. **False Alarm Rate (Tỷ lệ báo động giả):**
-   $$FAR = \frac{FP}{FP + TN}$$
-   (Tỷ lệ tin thật bị gán nhãn nhầm là tin giả. Đây là thông số sống còn trong uy tín của hệ thống).
+Để đảm bảo AI không bị "đoán mò", hệ thống sử dụng các chỉ số khắt khe:
+- **Accuracy:** Độ chính xác tổng quát.
+- **Precision:** Khả năng dự đoán đúng tin giả (tránh báo oan tin thật).
+- **Recall:** Khả năng bắt trọn mọi tin giả (tránh bỏ lọt tin độc hại).
+- **F1-Score:** Điểm trung bình hài hòa giữa Precision và Recall.
+- **False Alarm Rate:** Tỷ lệ báo động giả (Chỉ số quan trọng để đánh giá độ tin cậy).
 
 ---
 
-## 🧱 Ma Trận Nhầm Lẫn (Confusion Matrix)
+## 🎨 Giao Diện Người Dùng
 
-Đây là bảng thống kê chi tiết các trường hợp:
-
-- **True Positive (TP):** Tin giả và AI đoán đúng là giả. (Thành công ✅)
-- **True Negative (TN):** Tin thật và AI đoán đúng là thật. (Thành công ✅)
-- **False Positive (FP):** Tin thật nhưng AI đoán là giả. (Sai lầm "Oan sai" ❌)
-- **False Negative (FN):** Tin giả nhưng AI đoán là thật. (Sai lầm "Nguy hiểm" ❌)
-
----
-
-## 🎨 Giao Diện Người Dùng & Trải Nghiệm
-
-Hệ thống cung cấp 2 chế độ:
-1. **Detector Mode:** Người dùng nhập tin, nhận kết quả từ 5 mô hình đồng thời, xem biểu đồ xác suất và vector Doc2Vec.
-2. **Theory Academy:** Trang lý thuyết tương tác với Sidebar, cung cấp mọi định nghĩa và công thức toán học nêu trên một cách trực quan.
+- **Detector Mode:** Nhập văn bản -> AI phân tích -> Xem xác suất & giải thích lý thuyết.
+- **Theory Academy:** Thư viện lý thuyết chuyên sâu về NLP và Machine Learning.
+- **Metrics Dashboard:** Xem biểu đồ so sánh sức mạnh giữa các thuật toán AI.
 
 ---
 
 ## 🛠 Công Nghệ Sử Dụng
 
-- **Backend:** Python, FastAPI, Scikit-learn, Joblib, Gensim (Doc2Vec), Underthesea.
-- **Frontend:** React.js, Vite, Tailwind CSS, Axios, Framer Motion (Animations).
-- **Data:** Dataset tin tức tiếng Việt (~21,000 dòng).
+- **Backend:** FastAPI, Scikit-learn, Joblib, Gensim, Underthesea.
+- **Frontend:** React, Vite, Tailwind CSS, Framer Motion.
+- **Automation:** Batch Script (.bat) cho Windows.
 
 ---
 
