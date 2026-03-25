@@ -41,12 +41,26 @@ const Chapter3Models = () => {
     { rotate: 5, color: '#8b5cf6', name: 'Cây 5' },
   ];
 
+  // --- 6. PHOBERT STATES ---
+  const [pbWordIdx, setPbWordIdx] = useState(0);
+  const pbWords = ["Ngân", "hàng", "trung", "ương", "vừa", "tăng", "lãi", "suất"];
+  const pbAttention = [
+    [1.0, 0.8, 0.4, 0.3, 0.1, 0.2, 0.6, 0.4], // Ngân
+    [0.8, 1.0, 0.3, 0.2, 0.1, 0.1, 0.5, 0.3], // hàng
+    [0.4, 0.3, 1.0, 0.9, 0.2, 0.3, 0.7, 0.5], // trung
+    [0.3, 0.2, 0.9, 1.0, 0.1, 0.2, 0.6, 0.4], // ương
+    [0.1, 0.1, 0.2, 0.1, 1.0, 0.8, 0.3, 0.2], // vừa
+    [0.2, 0.1, 0.3, 0.2, 0.8, 1.0, 0.9, 0.7], // tăng
+    [0.6, 0.5, 0.7, 0.6, 0.3, 0.9, 1.0, 0.8], // lãi
+    [0.4, 0.3, 0.5, 0.4, 0.2, 0.7, 0.8, 1.0], // suất
+  ];
+
   return (
     <div className="space-y-32 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <section>
-        <h1 className="text-6xl font-black mb-6 text-slate-900 tracking-tight">3. 5 Thuật toán <span className="text-blue-600">Phân loại AI</span></h1>
+        <h1 className="text-6xl font-black mb-6 text-slate-900 tracking-tight">3. 6 Thuật toán <span className="text-blue-600">Phân loại AI</span></h1>
         <p className="text-xl text-slate-500 leading-relaxed max-w-3xl font-medium">
-          Mỗi thuật toán là một "góc nhìn" khác nhau về dữ liệu. Dưới đây là mô phỏng động chi tiết về 5 chiến binh AI trong trận chiến chống tin giả.
+          Mỗi thuật toán là một "góc nhìn" khác nhau về dữ liệu. Dưới đây là mô phỏng động chi tiết về 6 chiến binh AI trong trận chiến chống tin giả.
         </p>
       </section>
 
@@ -419,6 +433,94 @@ const Chapter3Models = () => {
             <div className="w-full mt-10 space-y-4">
                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase"><span>Số lượng Cây tham gia bầu chọn</span> <span>{rfTrees} Trees</span></div>
                <input type="range" min="1" max="5" value={rfTrees} onChange={(e) => setRfTrees(parseInt(e.target.value))} className="w-full accent-red-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* --- 6. PHOBERT --- */}
+      <div className="space-y-12">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 bg-cyan-600 rounded-[2rem] flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-cyan-200">6</div>
+          <div>
+            <h2 className="text-4xl font-black text-slate-900">PhoBERT (Transformer)</h2>
+            <p className="text-cyan-600 font-bold uppercase text-xs tracking-widest mt-1">Cơ chế Chú ý (Self-Attention)</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+          <div className="space-y-8">
+            <section className="space-y-4">
+              <h4 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <span className="w-2 h-6 bg-cyan-600 rounded-full"></span> 🟢 Đỉnh cao công nghệ NLP
+              </h4>
+              <p className="text-slate-600 leading-relaxed">
+                Khác với các mô hình trên, PhoBERT không chỉ "đếm từ". Nó "đọc" toàn bộ câu để hiểu ngữ cảnh. Chữ <strong>"đường"</strong> trong "đường ăn" sẽ được hiểu khác hoàn toàn với "đường đi" nhờ cơ chế Attention.
+              </p>
+            </section>
+
+            <div className="p-6 bg-cyan-50 rounded-3xl border border-cyan-100">
+               <h5 className="text-[10px] font-black text-cyan-600 uppercase mb-4 tracking-widest">Mô phỏng Self-Attention</h5>
+               <div className="flex flex-wrap gap-2 mb-6">
+                  {pbWords.map((word, i) => (
+                    <button 
+                      key={i} 
+                      onMouseEnter={() => setPbWordIdx(i)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all border-2 ${
+                        pbWordIdx === i ? 'bg-cyan-600 text-white border-cyan-600 scale-110' : 'bg-white text-slate-400 border-slate-100 hover:border-cyan-300'
+                      }`}
+                    >
+                      {word}
+                    </button>
+                  ))}
+               </div>
+               <div className="space-y-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase">Mối liên kết với từ khác:</p>
+                  <div className="flex items-end gap-1 h-12">
+                     {pbAttention[pbWordIdx].map((val, i) => (
+                       <div 
+                        key={i} 
+                        className="bg-cyan-600 rounded-t-sm transition-all duration-300" 
+                        style={{ height: `${val * 100}%`, width: '12%', opacity: 0.3 + val * 0.7 }}
+                        title={pbWords[i]}
+                       ></div>
+                     ))}
+                  </div>
+                  <p className="text-[9px] text-slate-400 italic mt-2 text-center">Di chuột qua từng từ ở trên để thấy AI "chú ý" vào các từ liên quan</p>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-4">
+              <div className="p-5 bg-green-50 rounded-3xl border border-green-100">
+                <h5 className="text-[10px] font-black text-green-600 uppercase mb-2">Ưu điểm</h5>
+                <p className="text-xs font-bold text-slate-700 leading-relaxed">Hiểu ngữ nghĩa sâu sắc, tiếng lóng, ngữ pháp tiếng Việt tinh vi. Chính xác nhất hiện nay.</p>
+              </div>
+              <div className="p-5 bg-red-50 rounded-3xl border border-red-100">
+                <h5 className="text-[10px] font-black text-red-600 uppercase mb-2">Nhược điểm</h5>
+                <p className="text-xs font-bold text-slate-700 leading-relaxed">Rất nặng (cần hàng GB RAM), tốc độ dự đoán chậm và yêu cầu máy tính có GPU mạnh.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 p-10 rounded-[3rem] text-white shadow-2xl flex flex-col items-center">
+            <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-10 text-center">Kiến trúc Transformer</h5>
+            
+            <div className="w-full space-y-4">
+               {[
+                 { name: 'Classification Head', color: 'bg-red-500', desc: 'Đưa ra kết luận: Thật / Giả' },
+                 { name: 'Pooling Layer', color: 'bg-yellow-500', desc: 'Nén toàn bộ ý nghĩa vào 1 vectơ' },
+                 { name: '12 Layers Transformer', color: 'bg-cyan-600', desc: 'Hàng triệu tham số phân tích ngữ nghĩa' },
+                 { name: 'Word Embedding', color: 'bg-indigo-600', desc: 'Chuyển chữ thành tọa độ không gian' },
+               ].map((layer, i) => (
+                 <div key={i} className={`p-4 rounded-2xl border border-white/10 ${layer.color} bg-opacity-20 flex flex-col items-center text-center animate-pulse`} style={{ animationDelay: `${i * 0.2}s` }}>
+                    <div className="text-[10px] font-black uppercase mb-1">{layer.name}</div>
+                    <div className="text-[8px] text-white/60 font-medium uppercase tracking-tighter">{layer.desc}</div>
+                 </div>
+               ))}
+               <div className="text-center pt-4">
+                  <div className="text-cyan-400 text-2xl font-black">↑ ↑ ↑</div>
+                  <div className="text-[10px] font-black text-slate-500 uppercase mt-1 tracking-[0.3em]">VĂN BẢN ĐẦU VÀO</div>
+               </div>
             </div>
           </div>
         </div>

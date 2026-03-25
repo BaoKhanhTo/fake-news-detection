@@ -18,7 +18,8 @@ Dự án này là một nền tảng tích hợp giữa công nghệ học máy 
 ## 🚀 Tổng Quan Dự Án
 
 Hệ thống được thiết kế để giải quyết vấn đề tin giả (Fake News) đang ngày càng tinh vi trên mạng xã hội Việt Nam. Khác với các công cụ kiểm tra thông thường, dự án này tập trung vào khía cạnh **giáo dục**:
-- **Đa mô hình:** Sử dụng đồng thời 5 thuật toán để người dùng so sánh độ chính xác.
+- **Đa mô hình:** Sử dụng đồng thời 6 thuật toán (bao gồm 5 mô hình truyền thống và 1 mô hình Transformer tiên tiến) để người dùng so sánh độ chính xác.
+- **PhoBERT Integration:** Tích hợp mô hình ngôn ngữ dựa trên kiến trúc Transformer chuyên biệt cho tiếng Việt để hiểu ngữ cảnh sâu sắc.
 - **Minh họa trực quan:** Hiển thị các chỉ số toán học, sơ đồ luồng dữ liệu và lý thuyết chi tiết.
 - **Xử lý đặc thù:** Tối ưu hóa cho ngôn ngữ tiếng Việt với các thư viện chuyên dụng.
 - **Minh bạch quy trình:** Toàn bộ quá trình từ dữ liệu thô đến mô hình hoàn chỉnh được báo cáo chi tiết.
@@ -43,9 +44,15 @@ run_all.bat
 ```
 
 2. **Huấn luyện lại AI (Nếu có dữ liệu mới):**
-Nếu bạn cập nhật thêm tin tức vào `data/fake_news.csv`, hãy chạy file này để cập nhật "bộ não" cho hệ thống:
+Nếu bạn cập nhật thêm tin tức vào `data/fake_news.csv`, hãy chạy file này để cập nhật các mô hình truyền thống:
 ```bash
 train_ai.bat
+```
+
+3. **Huấn luyện mô hình PhoBERT (Deep Learning):**
+Để huấn luyện mô hình Transformer chuyên sâu cho tiếng Việt (cần nhiều thời gian hơn):
+```bash
+train_phobert.bat
 ```
 
 ---
@@ -59,7 +66,7 @@ Hệ thống sử dụng một quy trình huấn luyện nghiêm ngặt gồm 7 
 3. **Trích xuất đặc trưng (TF-IDF):** Phân tích tần suất từ và tầm quan trọng của chúng. Lưu trữ `tfidf_vectorizer.pkl` cho Backend.
 4. **Vectơ hóa ngữ nghĩa (Doc2Vec):** Chuyển câu văn thành không gian 100 chiều để AI hiểu được ngữ cảnh sâu xa.
 5. **Huấn luyện Đa mô hình (Classifiers):** 
-    - Chạy song song 5 thuật toán: **Logistic Regression, SVM, Random Forest, Naive Bayes, Decision Tree**.
+    - Chạy song song 6 thuật toán: **PhoBERT (Transformer), Logistic Regression, SVM, Random Forest, Naive Bayes, Decision Tree**.
     - Báo cáo tiến độ (%) và thời gian thực hiện của từng mô hình.
 6. **Lưu trữ báo cáo (Metrics):** Xuất toàn bộ chỉ số Precision, Recall, F1 vào `models_metrics.json`.
 7. **Tổng kết hệ thống:** Báo cáo tổng thời gian và trạng thái sẵn sàng của các file mô hình `.pkl`.
@@ -72,7 +79,7 @@ Dữ liệu di chuyển qua các tầng sau:
 1. **Tầng Thu Thập:** Tiếp nhận văn bản thô từ người dùng.
 2. **Tầng Tiền Xử Lý:** Sử dụng `underthesea` để tách từ và Chuẩn hóa (Normalization).
 3. **Tầng Vectơ Hóa:** TF-IDF (Tính toán trọng số từ) & Doc2Vec (Vectơ hóa ngữ nghĩa).
-4. **Tầng Dự Đoán:** 5 mô hình thực hiện phân loại song song và trả về xác suất tin giả.
+4. **Tầng Dự Đoán:** 6 mô hình (PhoBERT + 5 mô hình ML truyền thống) thực hiện phân loại song song và trả về xác suất tin giả.
 5. **Tầng Hiển Thị:** Frontend React hiển thị kết quả kèm theo các giải thích giáo dục tương ứng.
 
 ---
@@ -84,11 +91,9 @@ Dữ liệu di chuyển qua các tầng sau:
 - **Doc2Vec:** Sử dụng mạng nơ-ron để gán cho mỗi bài báo một "tọa độ" trong không gian vector. Các bài báo có nội dung tương tự sẽ nằm gần nhau về mặt toán học.
 
 ### 5.2. Các Thuật Toán AI Chủ Đạo
+- **PhoBERT:** Mô hình Transformer tiên tiến nhất cho tiếng Việt, sử dụng cơ chế Attention để hiểu ngữ cảnh sâu sắc của câu văn.
 - **SVM:** Tìm siêu phẳng tối ưu để chia tách dữ liệu.
-- **Logistic Regression:** Dự đoán xác suất dựa trên hàm Sigmoid (0 đến 1).
-- **Random Forest:** Kết hợp kết quả từ 100 cây quyết định để đưa ra lựa chọn chính xác nhất.
-- **Naive Bayes:** Dựa trên xác suất thống kê Bayes (cực nhanh và hiệu quả với văn bản ngắn).
-- **Decision Tree:** Chia nhỏ dữ liệu theo các câu hỏi từ khóa quan trọng.
+... (rest of models) ...
 
 ---
 

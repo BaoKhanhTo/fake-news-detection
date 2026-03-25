@@ -1,4 +1,4 @@
-# CHI TIẾT LÝ THUYẾT 5 THUẬT TOÁN PHÂN LOẠI
+# CHI TIẾT LÝ THUYẾT 6 THUẬT TOÁN PHÂN LOẠI
 
 ## 1. Hồi quy Logistic (Logistic Regression)
 
@@ -147,3 +147,34 @@ Trong đó:
 ### ⚖️ Ưu & Nhược điểm
 *   **Ưu điểm:** Độ chính xác rất cao, hạn chế tối đa việc quá khớp, xử lý được dữ liệu thiếu.
 *   **Nhược điểm:** Tốn tài nguyên (RAM/CPU) hơn cây đơn lẻ; khó giải thích vì có quá nhiều cây.
+
+---
+
+## 6. PhoBERT (Transformer cho tiếng Việt)
+
+### 🟢 Khái niệm
+PhoBERT là một mô hình ngôn ngữ dựa trên kiến trúc Transformer (như ChatGPT nhưng chuyên biệt hơn), được huấn luyện trên khối lượng dữ liệu khổng lồ tiếng Việt. Khác với các mô hình truyền thống chỉ đếm từ, PhoBERT hiểu được ngữ cảnh sâu sắc của câu văn thông qua cơ chế học sâu.
+
+### 📐 Công thức & Chú thích
+**Cơ chế Chú ý (Self-Attention):**
+$$Attention(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+Trong đó:
+*   **$Q, K, V$**: Các ma trận Query (Truy vấn), Key (Khóa) và Value (Giá trị) được tạo ra từ văn bản đầu vào.
+*   **$\text{softmax}$**: Hàm chuẩn hóa xác suất để biết từ nào nên "chú ý" vào từ nào nhất.
+*   **$\sqrt{d_k}$**: Yếu tố tỉ lệ để giữ cho các giá trị không quá lớn.
+*   **Transformer Layers**: Các lớp mạng nơ-ron chồng lên nhau để trích xuất ý nghĩa từ thấp đến cao (từ chữ cái -> từ -> ngữ pháp -> ý nghĩa).
+
+### ⚙️ Nguyên lý hoạt động
+1.  **Phân đoạn từ (Segmentation):** Sử dụng các thư viện như `underthesea` để tách từ tiếng Việt đúng cách (ví dụ: "học sinh" là 1 từ, không phải 2 chữ "học" và "sinh").
+2.  **Mã hóa (Tokenization):** Chuyển từ thành các con số định danh (IDs) mà máy tính hiểu được.
+3.  **Cơ chế Chú ý:** Khi đọc một từ, mô hình sẽ nhìn các từ xung quanh để xác định nghĩa chính xác dựa trên ngữ cảnh (Ví dụ: từ "đường" trong "đường ăn" khác với "đường đi").
+4.  **Phân loại (Classification head):** Một lớp mạng nơ-ron cuối cùng sẽ nhận toàn bộ thông tin ngữ cảnh để đưa ra kết luận: Tin thật hay Tin giả.
+
+### 🎮 Mô phỏng tương tác
+*   **Ma trận Attention:** Khi người dùng di chuột qua một từ, các từ liên quan trong câu sẽ sáng lên (thể hiện mức độ liên kết ngữ nghĩa).
+*   **Lớp Transformer:** Hiển thị cách văn bản biến đổi qua từng lớp nơ-ron từ dữ liệu thô thành các vector trừu tượng.
+
+### ⚖️ Ưu & Nhược điểm
+*   **Ưu điểm:** Độ chính xác cực cao, hiểu được sắc thái biểu cảm, tiếng lóng và ngữ pháp phức tạp của tiếng Việt.
+*   **Nhược điểm:** Cần cấu hình máy tính mạnh (nên có GPU), tốc độ dự đoán chậm hơn các mô hình truyền thống; khó giải thích nội tại vì có hàng triệu tham số.
+

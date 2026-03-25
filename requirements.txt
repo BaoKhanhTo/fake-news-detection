@@ -7,6 +7,8 @@ underthesea
 tensorflow
 keras
 transformers
+torch
+accelerate
 python-multipart
 gensim
 matplotlib

@@ -7,6 +7,8 @@ import os
 import sys
 import json
 import numpy as np
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from gensim.models.doc2vec import Doc2Vec
 
 # Import preprocessing
@@ -27,11 +29,13 @@ app.add_middleware(
 # Load Models and Metrics
 MODELS_DIR = "models"
 models = {}
+phobert_model = None
+phobert_tokenizer = None
 metrics = {}
 d2v_model = None
 
 def load_resources():
-    global models, metrics, d2v_model
+    global models, metrics, d2v_model, phobert_model, phobert_tokenizer
     print(f"DEBUG: Loading resources from directory: {os.path.abspath(MODELS_DIR)}")
     try:
         metrics_path = os.path.join(MODELS_DIR, "models_metrics.json")
@@ -55,6 +59,18 @@ def load_resources():
             else:
                 print(f"DEBUG: Model file NOT found: {path}")
         
+        # Load PhoBERT
+        phobert_path = os.path.join(MODELS_DIR, "phobert_model")
+        if os.path.exists(phobert_path):
+            try:
+                print(f"DEBUG: Loading PhoBERT from {phobert_path}...")
+                phobert_tokenizer = AutoTokenizer.from_pretrained(phobert_path)
+                phobert_model = AutoModelForSequenceClassification.from_pretrained(phobert_path)
+                phobert_model.eval() # Set to evaluation mode
+                print("DEBUG: Success loading PhoBERT")
+            except Exception as pb_e:
+                print(f"DEBUG: Failed to load PhoBERT: {pb_e}")
+
         d2v_path = os.path.join(MODELS_DIR, "doc2vec.model")
         if os.path.exists(d2v_path):
             print(f"DEBUG: Loading Doc2Vec from {d2v_path}...")
@@ -62,7 +78,7 @@ def load_resources():
         else:
             print(f"DEBUG: Doc2Vec file NOT found: {d2v_path}")
             
-        print(f"DEBUG: Total models loaded: {list(models.keys())}")
+        print(f"DEBUG: Total models loaded: {list(models.keys())} + PhoBERT: {phobert_model is not None}")
     except Exception as e:
         print(f"DEBUG: Error loading resources: {e}")
 
@@ -103,6 +119,12 @@ EDUCATIONAL_CONTENT = {
         "principle": "Giảm quá khớp bằng cách kết hợp kết quả của nhiều cây độc lập.",
         "flow": "Văn bản -> TF-IDF -> Qua hàng trăm cây -> Voting -> Kết luận."
     },
+    "phobert": {
+        "name": "PhoBERT (Transformer cho tiếng Việt)",
+        "concept": "PhoBERT là một mô hình ngôn ngữ dựa trên kiến trúc Transformer, được huấn luyện chuyên sâu cho tiếng Việt.",
+        "principle": "Sử dụng cơ chế Attention (Chú ý) để hiểu ngữ nghĩa của từ dựa trên tất cả các từ khác trong câu.",
+        "flow": "Văn bản -> Phân đoạn từ -> Token hóa -> Transformer Layers -> Cơ chế Attention -> Vector ngữ nghĩa -> Phân loại."
+    },
     "doc2vec": {
         "name": "Doc2Vec (Vectơ hóa văn bản)",
         "concept": "Biểu diễn văn bản dưới dạng các vectơ số có độ dài cố định hiểu được ngữ nghĩa.",
@@ -113,18 +135,19 @@ EDUCATIONAL_CONTENT = {
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "models_loaded": list(models.keys())}
+    return {"status": "ok", "models_loaded": list(models.keys()), "phobert_loaded": phobert_model is not None}
 
 @app.post("/predict")
 def predict(item: NewsItem):
-    if not models:
+    if not models and phobert_model is None:
         load_resources()
-        if not models:
+        if not models and phobert_model is None:
             raise HTTPException(status_code=503, detail="Models not loaded on server")
     
     cleaned_text = clean_text(item.text)
     results = {}
     
+    # 1. Dự đoán với các mô hình Scikit-learn
     for name in ['logistic_regression', 'svm', 'decision_tree', 'naive_bayes', 'random_forest']:
         if name in models:
             try:
@@ -153,6 +176,35 @@ def predict(item: NewsItem):
             except Exception as e:
                 print(f"DEBUG: Error predicting with {name}: {e}")
     
+    # 2. Dự đoán với PhoBERT
+    if phobert_model and phobert_tokenizer:
+        try:
+            inputs = phobert_tokenizer(cleaned_text, return_tensors="pt", truncation=True, padding=True, max_length=128)
+            with torch.no_grad():
+                outputs = phobert_model(**inputs)
+                probs = torch.nn.functional.softmax(outputs.logits, dim=-1)[0].numpy()
+                label = int(np.argmax(probs))
+            
+            raw_metrics = metrics.get("phobert", {})
+            model_metrics = {
+                "accuracy": float(raw_metrics.get("accuracy", 0)),
+                "f1": float(raw_metrics.get("f1", 0)),
+                "recall": float(raw_metrics.get("recall", 0)),
+                "precision": float(raw_metrics.get("precision", 0)),
+                "false_alarm_rate": float(raw_metrics.get("false_alarm_rate", 0)),
+                "confusion_matrix": raw_metrics.get("confusion_matrix", [[0, 0], [0, 0]])
+            }
+
+            results["phobert"] = {
+                "prediction": "Fake" if label == 1 else "Real",
+                "fake_probability": float(probs[1]),
+                "real_probability": float(probs[0]),
+                "metrics": model_metrics,
+                "education": EDUCATIONAL_CONTENT.get("phobert", {})
+            }
+        except Exception as e:
+            print(f"DEBUG: Error predicting with PhoBERT: {e}")
+
     if not results:
         raise HTTPException(status_code=500, detail="Prediction failed for all models.")
     

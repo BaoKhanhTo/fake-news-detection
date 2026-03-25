@@ -32,6 +32,13 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 
+# Models
+models/phobert_model/
+models/phobert_checkpoints/
+models/doc2vec.model
+*.pkl
+models/models_metrics.json
+
 # OS
 .DS_Store
 Thumbs.db
