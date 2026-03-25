@@ -55,6 +55,39 @@ train_ai.bat
 train_phobert.bat
 ```
 
+### 2.3 Cấu trúc thư mục và vai trò các thành phần
+
+Dự án được tổ chức theo cấu trúc module hóa chuyên nghiệp, giúp dễ dàng quản lý dữ liệu và mở rộng mô hình:
+
+```text
+Fake_News_Detect/
+├── data/                   # Quản lý dữ liệu (Phân cấp Train/Val/Test)
+│   ├── train/              # Chứa các file CSV để AI học kiến thức
+│   ├── val/                # Dữ liệu kiểm định (Dùng để tối ưu thông số khi train)
+│   └── test/               # Dữ liệu kiểm thử (Chấm điểm khách quan sau huấn luyện)
+├── src/                    # Mã nguồn xử lý chính (Python)
+│   ├── preprocess.py       # Làm sạch văn bản, tách từ tiếng Việt chuyên sâu
+│   ├── split_data.py       # Tự động hóa việc phân chia folder Train/Val/Test
+│   ├── train.py            # Huấn luyện 5 mô hình Machine Learning truyền thống
+│   ├── train_phobert.py    # Huấn luyện mô hình Deep Learning (Transformer)
+│   └── show_metrics.py     # Script hiển thị báo cáo chỉ số sau huấn luyện
+├── frontend/               # Giao diện người dùng (React/TypeScript)
+│   ├── src/pages/          # Các trang chính: Detector, Theory, Metrics...
+│   └── tailwind.config.js  # Cấu hình phong cách hiển thị hiện đại
+├── models/                 # Lưu trữ các "bộ não" AI sau khi học xong
+│   ├── *.pkl               # Các mô hình ML truyền thống (SVM, RF, LR...)
+│   ├── phobert_model/      # Trọng số mô hình Transformer đã fine-tune
+│   └── models_metrics.json # File JSON chứa kết quả đánh giá trọn bộ mô hình
+├── train_ai.bat            # Công cụ tự động hóa huấn luyện ML truyền thống
+├── train_phobert.bat       # Công cụ tự động hóa huấn luyện PhoBERT
+└── run_all.bat             # Khởi chạy toàn bộ hệ thống (Frontend + Backend)
+```
+
+**Vai trò các thành phần then chốt:**
+- **Thư mục `data/`**: Được thiết kế để AI tự động gộp tất cả file CSV trong từng folder tương ứng. Bạn chỉ cần thả thêm dữ liệu mới vào đúng folder, AI sẽ tự động học thêm kiến thức mới.
+- **Script `split_data.py`**: Đảm bảo tính khoa học bằng cách chia dữ liệu gốc theo tỷ lệ 80/10/10, giúp kết quả đánh giá mô hình luôn trung thực.
+- **File `models_metrics.json`**: Cầu nối quan trọng giữa AI và Frontend, giúp hiển thị trực quan sức mạnh của các thuật toán lên màn hình Dashboard.
+
 ---
 
 ## 🧠 Quy Trình Huấn Luyện AI Chuyên Sâu (7 Bước)
