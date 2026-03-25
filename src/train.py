@@ -31,44 +31,68 @@ def print_header(step, title):
     print(f"\n" + "="*80)
     print(f" [{step}/7] {title.upper()}")
     print("="*80)
+    time.sleep(1.2)
 
-def train_all_models(data_path, models_dir):
+def load_data_from_dir(dir_path):
+    if not os.path.exists(dir_path):
+        return pd.DataFrame()
+    all_files = [os.path.join(dir_path, f) for f in os.listdir(dir_path) if f.endswith('.csv')]
+    if not all_files:
+        return pd.DataFrame()
+    
+    dfs = []
+    for f in all_files:
+        try:
+            temp_df = pd.read_csv(f)
+            text_col = next((c for c in ['post_message', 'text', 'content', 'Maintext', 'maintext'] if c in temp_df.columns), None)
+            label_col = next((c for c in temp_df.columns if c.lower() == 'label'), None)
+            
+            if text_col and label_col:
+                temp_df = temp_df[[text_col, label_col]].rename(columns={text_col: 'text', label_col: 'label'})
+                dfs.append(temp_df)
+                print(f"    [+] Loaded: {os.path.basename(f)} ({len(temp_df)} records)")
+        except:
+            pass
+            
+    if not dfs: return pd.DataFrame()
+    return pd.concat(dfs, ignore_index=True)
+
+def train_all_models(data_dir, models_dir):
     start_total = time.time()
     
     # --- BUOC 1: DOC DU LIEU ---
     print_header(1, "Khoi tao va Doc du lieu nguon")
-    if not os.path.exists(data_path):
-        print(f" [ERROR] Khong tim thay file {data_path}")
+    df_train = load_data_from_dir(os.path.join(data_dir, 'train'))
+    df_val = load_data_from_dir(os.path.join(data_dir, 'val'))
+    df_test = load_data_from_dir(os.path.join(data_dir, 'test'))
+
+    if df_train.empty or df_test.empty:
+        print(f" [ERROR] Khong tim thay du lieu hop le.")
         return
     
-    df = pd.read_csv(data_path)
-    text_col = 'post_message' if 'post_message' in df.columns else 'text'
-    df.dropna(subset=[text_col, 'label'], inplace=True)
-    
-    print(f"  - Tep tin: {os.path.basename(data_path)}")
-    print(f"  - Tong so mau du lieu tho: {len(df)} ban ghi")
-    print(f"  - Trang thai: Da san sang de xu ly.")
+    print(f"  - Tong so mau du lieu: Train={len(df_train)}, Val={len(df_val)}, Test={len(df_test)}")
 
     # --- BUOC 2: PREPROCESSING ---
-    print_header(2, "Tien hanh lam sach va Phan tach du lieu")
+    print_header(2, "Tien hanh lam sach van ban")
     start_pre = time.time()
     tqdm.pandas(desc="    Tien trinh lam sach (%)")
-    df['clean_text'] = df[text_col].progress_apply(clean_text)
     
-    X = df['clean_text']
-    y = df['label']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    df_train['clean_text'] = df_train['text'].progress_apply(clean_text)
+    df_val['clean_text'] = df_val['text'].progress_apply(clean_text)
+    df_test['clean_text'] = df_test['text'].progress_apply(clean_text)
+    
+    X_train, y_train = df_train['clean_text'], df_train['label']
+    X_val, y_val = df_val['clean_text'], df_val['label']
+    X_test, y_test = df_test['clean_text'], df_test['label']
     
     print(f"  - Thoi gian xu ly: {time.time() - start_pre:.2f}s")
-    print(f"  - Ket qua phan tach:")
-    print(f"    + Tap Huan luyen (Train): {len(X_train)} mau")
-    print(f"    + Tap Kiem thu (Test): {len(X_test)} mau")
 
     # --- BUOC 3: TF-IDF VECTORIZATION ---
     print_header(3, "Trich xuat dac trung van ban (TF-IDF)")
     start_tfidf = time.time()
     
     print(f"  - [1/4] Khoi tao cau hinh TF-IDF (Max features: 5000)...")
+    time.sleep(0.5)
     tfidf_vectorizer = TfidfVectorizer(max_features=5000)
     
     print(f"  - [2/4] Dang phan tich tu vung tu {len(X_train)} mau van ban...")
@@ -76,6 +100,7 @@ def train_all_models(data_path, models_dir):
     
     vocab_size = len(tfidf_vectorizer.vocabulary_)
     print(f"  - [3/4] Dang tinh toan trong so IDF cho {vocab_size} dac trung...")
+    time.sleep(0.5)
     
     print(f"  - [4/4] Dang dong goi va luu tru Vectorizer...")
     joblib.dump(tfidf_vectorizer, os.path.join(models_dir, "tfidf_vectorizer.pkl"))
@@ -84,16 +109,12 @@ def train_all_models(data_path, models_dir):
 
     # --- BUOC 4: DOC2VEC ---
     print_header(4, "Xay dung Vector dai dien (Doc2Vec)")
-    print(f"  [GIAI THICH]: Doc2Vec bien van ban thanh mot day so (Vector).")
-    print(f"  - Vector Size (100): Moi cau se duoc dai dien bang 100 con so dac trung.")
-    print(f"  - Window (5): AI se nhin xung quanh 5 tu de hieu ngu canh cua tu o giua.")
-    print(f"  - Epochs (40): AI se doc di doc lai du lieu 40 lan de toi uu hoa tri nho.")
-    
     start_d2v = time.time()
-    tagged_data = [TaggedDocument(words=text.split(), tags=[str(i)]) for i, text in enumerate(X)]
+    X_all = pd.concat([X_train, X_val, X_test])
+    tagged_data = [TaggedDocument(words=text.split(), tags=[str(i)]) for i, text in enumerate(X_all)]
     
     d2v_model = Doc2Vec(vector_size=100, window=5, min_count=2, workers=4, epochs=40)
-    print(f"  - Dang khoi tao tu vung (Vocabulary size: {len(X)} docs)...")
+    print(f"  - Dang khoi tao tu vung (Vocabulary size: {len(X_all)} docs)...")
     d2v_model.build_vocab(tagged_data)
     
     print(f"  - Dang huan luyen Vector hoa:")
@@ -118,35 +139,68 @@ def train_all_models(data_path, models_dir):
     ]
 
     models_info = {}
+    metrics_path = os.path.join(models_dir, "models_metrics.json")
+    if os.path.exists(metrics_path):
+        try:
+            with open(metrics_path, "r") as f: models_info = json.load(f)
+        except: pass
+
+    # Danh sach mo ta dac trung cho tung mo hinh
+    model_descriptions = {
+        'logistic_regression': {
+            'train': 'Dang tim kiem trong so toi uu cho phuong trinh Logistic...',
+            'eval': 'Dang kiem tra kha nang phan loai tuyen tinh trên tap Val & Test...'
+        },
+        'svm': {
+            'train': 'Dang xac dinh sieu phang (Hyperplane) phan tach du lieu voi le lon nhat...',
+            'eval': 'Dang do luong do chinh xac cua sieu phang tren du lieu moi...'
+        },
+        'random_forest': {
+            'train': 'Dang xay dung tap hop cac cay quyet dinh (Ensemble of Trees)...',
+            'eval': 'Dang tong hop y kien tu cac cay de dua ra ket qua cuoi cung...'
+        },
+        'naive_bayes': {
+            'train': 'Dang tinh toan xac suat Bayes dua tren tan suat tu vung...',
+            'eval': 'Dang ap dung quy tac Bayes de du doan nhan cho du lieu...'
+        },
+        'decision_tree': {
+            'train': 'Dang phan nhanh du lieu de tao cau truc cay quyet dinh...',
+            'eval': 'Dang duyet cay quyet dinh de tim nhan cho cac mau kiem thu...'
+        }
+    }
+
     for i, (full_name, clf, short_name) in enumerate(classifiers):
         print(f"\n  ({i+1}/{len(classifiers)}) --- {full_name.upper()} ---")
         start_step = time.time()
+        desc = model_descriptions.get(short_name, {'train': 'Dang huan luyen...', 'eval': 'Dang danh gia...'})
         
         pipeline = Pipeline([
             ('tfidf', TfidfVectorizer(max_features=5000, vocabulary=tfidf_vectorizer.vocabulary_)),
             ('clf', clf)
         ])
         
-        print(f"    [1] Thuc thi: Dang huan luyen thuat toan...")
+        print(f"    [1] Thuc thi: {desc['train']}")
         pipeline.fit(X_train, y_train)
         
-        print(f"    [2] Danh gia: Dang tinh toan cac chi so kiem thu...")
-        y_pred = pipeline.predict(X_test)
+        print(f"    [2] Danh gia: {desc['eval']}")
+        y_val_pred = pipeline.predict(X_val)
+        val_acc = accuracy_score(y_val, y_val_pred)
         
-        # Tinh toan day du cac chi so cho Frontend
-        acc = accuracy_score(y_test, y_pred)
-        f1 = f1_score(y_test, y_pred, zero_division=0)
-        prec = precision_score(y_test, y_pred, zero_division=0)
-        rec = recall_score(y_test, y_pred, zero_division=0)
+        y_test_pred = pipeline.predict(X_test)
+        acc = accuracy_score(y_test, y_test_pred)
+        f1 = f1_score(y_test, y_test_pred, zero_division=0)
+        prec = precision_score(y_test, y_test_pred, zero_division=0)
+        rec = recall_score(y_test, y_test_pred, zero_division=0)
         
         # Tinh Báo động giả (False Alarm Rate)
-        cm = confusion_matrix(y_test, y_pred)
+        cm = confusion_matrix(y_test, y_test_pred)
         tn, fp, fn, tp = cm.ravel()
         far = fp / (fp + tn) if (fp + tn) > 0 else 0
         
         duration = time.time() - start_step
-        print(f"    [3] Ket qua: Acc={acc*100:.1f}% | Precision={prec*100:.1f}% | Recall={rec*100:.1f}%")
-        print(f"    [4] Thoi gian: {duration:.2f} giay")
+        print(f"    [3] Chi so: Acc={acc*100:.1f}% | F1={f1*100:.1f}% | Prec={prec*100:.1f}% | Rec={rec*100:.1f}%")
+        print(f"    [4] FAR: {far*100:.2f}% (Ty le bao dong gia tren tin that)")
+        print(f"    [5] Thoi gian thuc hien: {duration:.2f} giay")
         
         models_info[short_name] = {
             "accuracy": float(acc),
@@ -161,7 +215,7 @@ def train_all_models(data_path, models_dir):
 
     # --- BUOC 6: LUU KET QUA ---
     print_header(6, "Luu tru bao cao Metrics")
-    with open(os.path.join(models_dir, "models_metrics.json"), "w") as f:
+    with open(metrics_path, "w") as f:
         json.dump(models_info, f, indent=4)
     print(f"  - Da cap nhat tep tin: models/models_metrics.json (San sang cho Frontend)")
 
@@ -171,7 +225,7 @@ def train_all_models(data_path, models_dir):
     print("="*80 + "\n")
 
 if __name__ == "__main__":
-    DATA_PATH = os.path.join("data", "fake_news.csv")
+    DATA_DIR = "data"
     MODELS_DIR = "models"
     os.makedirs(MODELS_DIR, exist_ok=True)
-    train_all_models(DATA_PATH, MODELS_DIR)
+    train_all_models(DATA_DIR, MODELS_DIR)
