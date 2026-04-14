@@ -31,11 +31,15 @@ MODELS_DIR = "models"
 models = {}
 phobert_model = None
 phobert_tokenizer = None
+vibert_model = None
+vibert_tokenizer = None
+sbert_model = None
+sbert_tokenizer = None
 metrics = {}
 d2v_model = None
 
 def load_resources():
-    global models, metrics, d2v_model, phobert_model, phobert_tokenizer
+    global models, metrics, d2v_model, phobert_model, phobert_tokenizer, vibert_model, vibert_tokenizer, sbert_model, sbert_tokenizer
     print(f"DEBUG: Loading resources from directory: {os.path.abspath(MODELS_DIR)}")
     try:
         metrics_path = os.path.join(MODELS_DIR, "models_metrics.json")
@@ -71,6 +75,30 @@ def load_resources():
             except Exception as pb_e:
                 print(f"DEBUG: Failed to load PhoBERT: {pb_e}")
 
+        # Load ViBERT
+        vibert_path = os.path.join(MODELS_DIR, "vibert_model")
+        if os.path.exists(vibert_path):
+            try:
+                print(f"DEBUG: Loading ViBERT from {vibert_path}...")
+                vibert_tokenizer = AutoTokenizer.from_pretrained(vibert_path)
+                vibert_model = AutoModelForSequenceClassification.from_pretrained(vibert_path)
+                vibert_model.eval()
+                print("DEBUG: Success loading ViBERT")
+            except Exception as vb_e:
+                print(f"DEBUG: Failed to load ViBERT: {vb_e}")
+
+        # Load SBERT
+        sbert_path = os.path.join(MODELS_DIR, "sbert_model")
+        if os.path.exists(sbert_path):
+            try:
+                print(f"DEBUG: Loading SBERT from {sbert_path}...")
+                sbert_tokenizer = AutoTokenizer.from_pretrained(sbert_path)
+                sbert_model = AutoModelForSequenceClassification.from_pretrained(sbert_path)
+                sbert_model.eval()
+                print("DEBUG: Success loading SBERT")
+            except Exception as sb_e:
+                print(f"DEBUG: Failed to load SBERT: {sb_e}")
+
         d2v_path = os.path.join(MODELS_DIR, "doc2vec.model")
         if os.path.exists(d2v_path):
             print(f"DEBUG: Loading Doc2Vec from {d2v_path}...")
@@ -78,7 +106,7 @@ def load_resources():
         else:
             print(f"DEBUG: Doc2Vec file NOT found: {d2v_path}")
             
-        print(f"DEBUG: Total models loaded: {list(models.keys())} + PhoBERT: {phobert_model is not None}")
+        print(f"DEBUG: Total models loaded: {list(models.keys())} + Deep Learning models")
     except Exception as e:
         print(f"DEBUG: Error loading resources: {e}")
 
@@ -121,9 +149,21 @@ EDUCATIONAL_CONTENT = {
     },
     "phobert": {
         "name": "PhoBERT (Transformer cho tiếng Việt)",
-        "concept": "PhoBERT là một mô hình ngôn ngữ dựa trên kiến trúc Transformer, được huấn luyện chuyên sâu cho tiếng Việt.",
+        "concept": "PhoBERT là một mô hình ngôn ngữ dựa trên kiến trúc Transformer, được huấn luyện chuyên sâu cho tiếng Việt bởi VinAI.",
         "principle": "Sử dụng cơ chế Attention (Chú ý) để hiểu ngữ nghĩa của từ dựa trên tất cả các từ khác trong câu.",
         "flow": "Văn bản -> Phân đoạn từ -> Token hóa -> Transformer Layers -> Cơ chế Attention -> Vector ngữ nghĩa -> Phân loại."
+    },
+    "vibert": {
+        "name": "ViBERT (BERT cho tiếng Việt - FPTAI)",
+        "concept": "ViBERT là mô hình ngôn ngữ dựa trên kiến trúc BERT, được FPTAI huấn luyện tối ưu cho các tác vụ hiểu ngôn ngữ tiếng Việt.",
+        "principle": "Học biểu diễn từ vựng bằng cách dự đoán các từ bị che khuất (Masked Language Modeling) trong kho văn bản lớn.",
+        "flow": "Văn bản -> BERT Tokenizer -> Encoder Layers -> Biểu diễn Contextual -> Classification Head -> Kết quả."
+    },
+    "sbert": {
+        "name": "Vietnamese-SBERT (Sentence-BERT)",
+        "concept": "Vietnamese-SBERT là mô hình tinh chỉnh nhằm tạo ra các vectơ biểu diễn câu (embeddings) chất lượng cao cho tiếng Việt.",
+        "principle": "Sử dụng kiến trúc Siamese để tối ưu hóa khoảng cách ngữ nghĩa giữa các câu văn.",
+        "flow": "Văn bản -> Tokenizer -> Transformer Backbone -> Pooling Layer -> Sentence Vector -> Phân loại."
     },
     "doc2vec": {
         "name": "Doc2Vec (Vectơ hóa văn bản)",
@@ -135,14 +175,20 @@ EDUCATIONAL_CONTENT = {
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "models_loaded": list(models.keys()), "phobert_loaded": phobert_model is not None}
+    return {
+        "status": "ok", 
+        "models_loaded": list(models.keys()), 
+        "deep_learning_loaded": {
+            "phobert": phobert_model is not None,
+            "vibert": vibert_model is not None,
+            "sbert": sbert_model is not None
+        }
+    }
 
 @app.post("/predict")
 def predict(item: NewsItem):
-    if not models and phobert_model is None:
+    if not models and phobert_model is None and vibert_model is None and sbert_model is None:
         load_resources()
-        if not models and phobert_model is None:
-            raise HTTPException(status_code=503, detail="Models not loaded on server")
     
     cleaned_text = clean_text(item.text)
     results = {}
@@ -176,34 +222,41 @@ def predict(item: NewsItem):
             except Exception as e:
                 print(f"DEBUG: Error predicting with {name}: {e}")
     
-    # 2. Dự đoán với PhoBERT
-    if phobert_model and phobert_tokenizer:
-        try:
-            inputs = phobert_tokenizer(cleaned_text, return_tensors="pt", truncation=True, padding=True, max_length=128)
-            with torch.no_grad():
-                outputs = phobert_model(**inputs)
-                probs = torch.nn.functional.softmax(outputs.logits, dim=-1)[0].numpy()
-                label = int(np.argmax(probs))
-            
-            raw_metrics = metrics.get("phobert", {})
-            model_metrics = {
-                "accuracy": float(raw_metrics.get("accuracy", 0)),
-                "f1": float(raw_metrics.get("f1", 0)),
-                "recall": float(raw_metrics.get("recall", 0)),
-                "precision": float(raw_metrics.get("precision", 0)),
-                "false_alarm_rate": float(raw_metrics.get("false_alarm_rate", 0)),
-                "confusion_matrix": raw_metrics.get("confusion_matrix", [[0, 0], [0, 0]])
-            }
+    # 2. Dự đoán với các mô hình Deep Learning (Transformer)
+    dl_models = [
+        ("phobert", phobert_model, phobert_tokenizer),
+        ("vibert", vibert_model, vibert_tokenizer),
+        ("sbert", sbert_model, sbert_tokenizer)
+    ]
 
-            results["phobert"] = {
-                "prediction": "Fake" if label == 1 else "Real",
-                "fake_probability": float(probs[1]),
-                "real_probability": float(probs[0]),
-                "metrics": model_metrics,
-                "education": EDUCATIONAL_CONTENT.get("phobert", {})
-            }
-        except Exception as e:
-            print(f"DEBUG: Error predicting with PhoBERT: {e}")
+    for name, model, tokenizer in dl_models:
+        if model and tokenizer:
+            try:
+                inputs = tokenizer(cleaned_text, return_tensors="pt", truncation=True, padding=True, max_length=128)
+                with torch.no_grad():
+                    outputs = model(**inputs)
+                    probs = torch.nn.functional.softmax(outputs.logits, dim=-1)[0].cpu().numpy()
+                    label = int(np.argmax(probs))
+                
+                raw_metrics = metrics.get(name, {})
+                model_metrics = {
+                    "accuracy": float(raw_metrics.get("accuracy", 0)),
+                    "f1": float(raw_metrics.get("f1", 0)),
+                    "recall": float(raw_metrics.get("recall", 0)),
+                    "precision": float(raw_metrics.get("precision", 0)),
+                    "false_alarm_rate": float(raw_metrics.get("false_alarm_rate", 0)),
+                    "confusion_matrix": raw_metrics.get("confusion_matrix", [[0, 0], [0, 0]])
+                }
+
+                results[name] = {
+                    "prediction": "Fake" if label == 1 else "Real",
+                    "fake_probability": float(probs[1]),
+                    "real_probability": float(probs[0]),
+                    "metrics": model_metrics,
+                    "education": EDUCATIONAL_CONTENT.get(name, {})
+                }
+            except Exception as e:
+                print(f"DEBUG: Error predicting with {name}: {e}")
 
     if not results:
         raise HTTPException(status_code=500, detail="Prediction failed for all models.")

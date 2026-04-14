@@ -14,7 +14,7 @@ const TheoryPage = () => {
   const chapters = [
     { id: 'nlp', title: '1. Tiền xử lý (NLP)', icon: '🧼' },
     { id: 'vector', title: '2. Vectơ hóa (TF-IDF & Doc2Vec)', icon: '🔢' },
-    { id: 'models', title: '3. 6 Thuật toán Phân loại AI', icon: '🧠' },
+    { id: 'models', title: '3. 8 Thuật toán Phân loại AI', icon: '🧠' },
     { id: 'metrics', title: '4. Chỉ số Đánh giá (Metrics)', icon: '📈' },
     { id: 'matrix', title: '5. Ma trận Nhầm lẫn (Confusion)', icon: '🧱' },
     { id: 'pipeline', title: '6. Luồng Xử Lý Hệ Thống', icon: '⚙️' },

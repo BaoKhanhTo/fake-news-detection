@@ -58,9 +58,9 @@ const Chapter3Models = () => {
   return (
     <div className="space-y-32 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <section>
-        <h1 className="text-6xl font-black mb-6 text-slate-900 tracking-tight">3. 6 Thuật toán <span className="text-blue-600">Phân loại AI</span></h1>
+        <h1 className="text-6xl font-black mb-6 text-slate-900 tracking-tight">3. 8 Thuật toán <span className="text-blue-600">Phân loại AI</span></h1>
         <p className="text-xl text-slate-500 leading-relaxed max-w-3xl font-medium">
-          Mỗi thuật toán là một "góc nhìn" khác nhau về dữ liệu. Dưới đây là mô phỏng động chi tiết về 6 chiến binh AI trong trận chiến chống tin giả.
+          Mỗi thuật toán là một "góc nhìn" khác nhau về dữ liệu. Dưới đây là mô phỏng động chi tiết về 8 chiến binh AI trong trận chiến chống tin giả.
         </p>
       </section>
 
@@ -522,6 +522,136 @@ const Chapter3Models = () => {
                   <div className="text-[10px] font-black text-slate-500 uppercase mt-1 tracking-[0.3em]">VĂN BẢN ĐẦU VÀO</div>
                </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* --- 7. VIBERT --- */}
+      <div className="space-y-12">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 bg-blue-800 rounded-[2rem] flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-blue-200">7</div>
+          <div>
+            <h2 className="text-4xl font-black text-slate-900">ViBERT (FPTAI)</h2>
+            <p className="text-blue-800 font-bold uppercase text-xs tracking-widest mt-1">Mô hình BERT tối ưu cho Tiếng Việt</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+          <div className="bg-slate-900 p-10 rounded-[3rem] text-white shadow-2xl flex flex-col items-center order-2 lg:order-1">
+             <div className="w-full space-y-4">
+                <div className="p-6 bg-blue-900/30 rounded-3xl border border-blue-500/20">
+                   <h5 className="text-[10px] font-black text-blue-400 uppercase mb-4 tracking-widest text-center">Đào tạo qua MLM</h5>
+                   <div className="text-center font-bold text-lg mb-4">
+                      Hôm nay trời rất <span className="bg-blue-600 px-2 rounded">[MASK]</span>
+                   </div>
+                   <div className="flex justify-center gap-2">
+                      <div className="px-3 py-1 bg-green-600/20 text-green-400 rounded-lg text-xs font-black">đẹp (85%)</div>
+                      <div className="px-3 py-1 bg-yellow-600/20 text-yellow-400 rounded-lg text-xs font-black">xấu (10%)</div>
+                      <div className="px-3 py-1 bg-red-600/20 text-red-400 rounded-lg text-xs font-black">nóng (5%)</div>
+                   </div>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed text-center italic mt-4">
+                   ViBERT học ngôn ngữ bằng cách "điền vào chỗ trống", giúp nó nắm bắt quy luật ngữ pháp và từ vựng tiếng Việt một cách tự nhiên nhất.
+                </p>
+             </div>
+          </div>
+
+          <div className="space-y-8 order-1 lg:order-2">
+            <section className="space-y-4">
+              <h4 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <span className="w-2 h-6 bg-blue-800 rounded-full"></span> 🟢 Khái niệm
+              </h4>
+              <p className="text-slate-600 leading-relaxed">
+                ViBERT là một biến thể của BERT, được FPTAI huấn luyện với lượng dữ liệu tiếng Việt khổng lồ từ các trang tin tức chính thống. Nó kế thừa đầy đủ sức mạnh của Transformer nhưng tập trung vào sự đa dạng của từ vựng Việt Nam.
+              </p>
+            </section>
+
+            <div className="grid grid-cols-2 gap-4 pt-4">
+              <div className="p-5 bg-green-50 rounded-3xl border border-green-100">
+                <h5 className="text-[10px] font-black text-green-600 uppercase mb-2">Ưu điểm</h5>
+                <p className="text-xs font-bold text-slate-700 leading-relaxed">Hiệu năng phân loại sắc thái và ý định cực tốt nhờ kho từ vựng tin tức phong phú.</p>
+              </div>
+              <div className="p-5 bg-red-50 rounded-3xl border border-red-100">
+                <h5 className="text-[10px] font-black text-red-600 uppercase mb-2">Nhược điểm</h5>
+                <p className="text-xs font-bold text-slate-700 leading-relaxed">Cần tài nguyên máy tính cao, tốc độ xử lý chậm hơn các mô hình truyền thống.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* --- 8. SBERT --- */}
+      <div className="space-y-12">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-indigo-200">8</div>
+          <div>
+            <h2 className="text-4xl font-black text-slate-900">Vietnamese-SBERT</h2>
+            <p className="text-indigo-600 font-bold uppercase text-xs tracking-widest mt-1">So sánh Ngữ nghĩa Câu văn</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+          <div className="space-y-8">
+            <section className="space-y-4">
+              <h4 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <span className="w-2 h-6 bg-indigo-600 rounded-full"></span> 🟢 Khái niệm "Cặp song sinh"
+              </h4>
+              <p className="text-slate-600 leading-relaxed">
+                Khác với BERT truyền thống, SBERT được huấn luyện với cấu trúc Siamese (Cặp song sinh) để đưa toàn bộ câu văn về một tọa độ duy nhất trong không gian đa chiều. Nhờ đó, máy tính có thể so sánh độ giống nhau giữa 2 bài báo một cách tức thời.
+              </p>
+            </section>
+
+            <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 space-y-4">
+               <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Kiến trúc Siamese Network</h5>
+               <div className="flex justify-between items-center px-4">
+                  <div className="bg-white p-3 rounded-xl border border-indigo-200 text-[10px] font-bold shadow-sm">Câu văn A</div>
+                  <div className="text-indigo-300 font-black">➔ [ BERT ] ➔</div>
+                  <div className="bg-indigo-600 text-white p-3 rounded-xl text-[10px] font-bold shadow-lg">Vectơ 768 chiều</div>
+               </div>
+               <div className="flex justify-between items-center px-4">
+                  <div className="bg-white p-3 rounded-xl border border-indigo-200 text-[10px] font-bold shadow-sm">Câu văn B</div>
+                  <div className="text-indigo-300 font-black">➔ [ BERT ] ➔</div>
+                  <div className="bg-indigo-600 text-white p-3 rounded-xl text-[10px] font-bold shadow-lg">Vectơ 768 chiều</div>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-4">
+              <div className="p-5 bg-green-50 rounded-3xl border border-green-100">
+                <h5 className="text-[10px] font-black text-green-600 uppercase mb-2">Ưu điểm</h5>
+                <p className="text-xs font-bold text-slate-700 leading-relaxed">Đỉnh cao trong việc tìm kiếm thông tin và nhận biết các bài báo có nội dung tương tự nhau.</p>
+              </div>
+              <div className="p-5 bg-red-50 rounded-3xl border border-red-100">
+                <h5 className="text-[10px] font-black text-red-600 uppercase mb-2">Nhược điểm</h5>
+                <p className="text-xs font-bold text-slate-700 leading-relaxed">Phức tạp hơn trong việc tinh chỉnh cho các bài toán phân loại nhãn nhị phân.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 p-10 rounded-[3rem] text-white shadow-2xl flex flex-col items-center">
+             <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-10 text-center">Bản đồ Ngữ nghĩa (Vector Space)</h5>
+             <div className="relative w-64 h-64 border border-slate-700 rounded-full overflow-hidden flex items-center justify-center bg-[radial-gradient(circle_at_center,#1e293b_0%,#0f172a_100%)]">
+                <div className="absolute w-full h-px bg-slate-800"></div>
+                <div className="absolute h-full w-px bg-slate-800"></div>
+                
+                {/* Các cụm tin tức */}
+                <div className="absolute top-1/4 left-1/4">
+                   <div className="w-16 h-16 bg-blue-500/20 rounded-full blur-xl"></div>
+                   <div className="w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_10px_#3b82f6]"></div>
+                   <div className="text-[8px] text-blue-300 font-bold mt-1">Cụm tin Thật</div>
+                </div>
+                
+                <div className="absolute bottom-1/4 right-1/4">
+                   <div className="w-16 h-16 bg-red-500/20 rounded-full blur-xl"></div>
+                   <div className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_10px_#ef4444]"></div>
+                   <div className="text-[8px] text-red-300 font-bold mt-1">Cụm tin Giả</div>
+                </div>
+                
+                {/* Tin mới đang so sánh */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-bounce">
+                   <div className="w-3 h-3 bg-yellow-400 rounded-full border-2 border-white shadow-[0_0_20px_#fbbf24]"></div>
+                </div>
+             </div>
+             <p className="text-[10px] text-slate-500 mt-8 text-center uppercase tracking-widest font-black">AI đang đo khoảng cách để phân loại</p>
           </div>
         </div>
       </div>
