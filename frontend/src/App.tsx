@@ -97,6 +97,94 @@ function App() {
     )
   }
 
+  const ConfusionMatrix = ({ matrix }: { matrix?: number[][] }) => {
+    if (!matrix || matrix.length < 2) return null;
+    const tn = matrix[0][0];
+    const fp = matrix[0][1];
+    const fn = matrix[1][0];
+    const tp = matrix[1][1];
+    const total = tn + fp + fn + tp;
+
+    return (
+      <div className="bg-white rounded-3xl shadow-xl p-8 border border-slate-100 mt-8 animate-in slide-in-from-bottom-4 duration-700">
+        <h3 className="text-sm font-black text-slate-400 uppercase mb-6 tracking-widest flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+          Ma Trận Nhầm Lẫn (Confusion Matrix)
+        </h3>
+        
+        <div className="relative">
+          {/* Header Labels */}
+          <div className="grid grid-cols-4 mb-2">
+            <div className="col-span-1"></div>
+            <div className="col-span-1 text-center py-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Dự đoán Thật</span>
+            </div>
+            <div className="col-span-1 text-center py-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Dự đoán Giả</span>
+            </div>
+            <div className="col-span-1"></div>
+          </div>
+
+          <div className="grid grid-cols-4 gap-3 items-stretch">
+            {/* Row 1: Actual Real */}
+            <div className="flex items-center justify-end pr-4 text-right">
+              <span className="text-[10px] font-black text-slate-400 uppercase leading-none">Thực tế<br/>Thật</span>
+            </div>
+            
+            <div className="group relative bg-emerald-50 border-2 border-emerald-100 p-6 rounded-2xl text-center transition-all hover:scale-105 hover:shadow-lg hover:shadow-emerald-100">
+               <div className="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full uppercase">TN</div>
+               <p className="text-3xl font-black text-emerald-700">{tn}</p>
+               <p className="text-[10px] text-emerald-600 font-bold uppercase mt-1">Đúng</p>
+            </div>
+
+            <div className="group relative bg-rose-50 border-2 border-rose-100 p-6 rounded-2xl text-center transition-all hover:scale-105 hover:shadow-lg hover:shadow-rose-100">
+               <div className="absolute top-2 left-2 px-2 py-0.5 bg-rose-500 text-white text-[8px] font-black rounded-full uppercase">FP</div>
+               <p className="text-3xl font-black text-rose-700">{fp}</p>
+               <p className="text-[10px] text-rose-600 font-bold uppercase mt-1">Sai</p>
+            </div>
+
+            <div className="col-span-1"></div>
+
+            {/* Row 2: Actual Fake */}
+            <div className="flex items-center justify-end pr-4 text-right">
+              <span className="text-[10px] font-black text-slate-400 uppercase leading-none">Thực tế<br/>Giả</span>
+            </div>
+
+            <div className="group relative bg-rose-50 border-2 border-rose-100 p-6 rounded-2xl text-center transition-all hover:scale-105 hover:shadow-lg hover:shadow-rose-100">
+               <div className="absolute top-2 left-2 px-2 py-0.5 bg-rose-500 text-white text-[8px] font-black rounded-full uppercase">FN</div>
+               <p className="text-3xl font-black text-rose-700">{fn}</p>
+               <p className="text-[10px] text-rose-600 font-bold uppercase mt-1">Sai</p>
+            </div>
+
+            <div className="group relative bg-emerald-50 border-2 border-emerald-100 p-6 rounded-2xl text-center transition-all hover:scale-105 hover:shadow-lg hover:shadow-emerald-100">
+               <div className="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black rounded-full uppercase">TP</div>
+               <p className="text-3xl font-black text-emerald-700">{tp}</p>
+               <p className="text-[10px] text-emerald-600 font-bold uppercase mt-1">Đúng</p>
+            </div>
+            
+            <div className="col-span-1"></div>
+          </div>
+        </div>
+
+        <div className="mt-8 flex items-center justify-between border-t border-slate-50 pt-6">
+          <div className="flex gap-4">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-emerald-500"></div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Chính xác</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-rose-500"></div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Nhầm lẫn</span>
+            </div>
+          </div>
+          <p className="text-slate-400 text-[10px] italic font-black uppercase tracking-widest">
+            TỔNG MẪU KIỂM THỬ: {total}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   if (currentView === 'theory') {
     return (
       <>
@@ -223,6 +311,8 @@ function App() {
                     <p className="text-slate-700 font-bold mb-4 text-lg">{result.results[activeTab].education?.concept}</p>
                     <p className="text-slate-500 italic leading-relaxed">{result.results[activeTab].education?.principle}</p>
                   </div>
+
+                  <ConfusionMatrix matrix={result.results[activeTab].metrics?.confusion_matrix} />
                 </div>
 
                 <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl h-fit sticky top-24">
