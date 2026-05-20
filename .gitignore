@@ -27,9 +27,14 @@ ENV/
 # Models
 *.pkl
 models/models_metrics.json
+models/threshold.json
 
 # Django local database
 db.sqlite3
+
+# Local environment variables (never commit real secrets)
+.env
+.env.local
 
 # OS
 .DS_Store

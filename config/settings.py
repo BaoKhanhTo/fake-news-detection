@@ -1,11 +1,34 @@
+import os
 from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-local-fake-news-detector"
-DEBUG = True
-ALLOWED_HOSTS = ["*"]
+
+def _env_bool(name, default=False):
+    return os.environ.get(name, "1" if default else "0").lower() in ("1", "true", "yes", "on")
+
+
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-local-fake-news-detector",
+)
+
+DEBUG = _env_bool("DJANGO_DEBUG", default=True)
+
+if SECRET_KEY.startswith("django-insecure-") and not DEBUG:
+    raise RuntimeError(
+        "Refusing to start with the default insecure SECRET_KEY while DEBUG is off. "
+        "Set the DJANGO_SECRET_KEY environment variable for production."
+    )
+
+_allowed_hosts_env = os.environ.get("DJANGO_ALLOWED_HOSTS", "").strip()
+if _allowed_hosts_env:
+    ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_env.split(",") if host.strip()]
+elif DEBUG:
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+else:
+    ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     "django.contrib.admin",
