@@ -1,176 +1,192 @@
-# ĐỒ ÁN: HỆ THỐNG KIỂM CHỨNG VÀ NHẬN DIỆN TIN GIẢ TIẾNG VIỆT DỰA TRÊN MÔ HÌNH HYBRID MACHINE LEARNING
+# Hệ thống nhận diện tin giả tiếng Việt
 
----
+Dự án xây dựng một ứng dụng web đơn giản bằng Django để phân loại nội dung tin tức tiếng Việt thành **Real News** hoặc **Fake News**. Pipeline hiện tại sử dụng tiền xử lý tiếng Việt, trích xuất đặc trưng bằng TF-IDF và mô hình **Logistic Regression**.
 
-## 📖 MỤC LỤC
-*   [Phần 1. TỔNG QUAN](#phần-1-tổng-quan)
-    *   [1.1 Giới thiệu đề tài](#11-giới-thiệu-đề-tài)
-    *   [1.2 Tóm tắt lý thuyết và nghiên cứu liên quan](#12-tóm-tắt-lý-thuyết-và-nghiên-cứu-liên-quan)
-    *   [1.3 Nhiệm vụ đồ án](#13-nhiệm-vụ-đồ-án)
-    *   [1.4 Cấu trúc đồ án](#14-cấu-trúc-đồ-án)
-*   [Phần 2. CƠ SỞ LÝ THUYẾT](#phần-2-cơ-sở-lý-thuyết)
-    *   [2.1 Định nghĩa và phân loại tin giả (Fake News Taxonomy)](#21-định-nghĩa-và-phân-loại-tin-giả-fake-news-taxonomy)
-    *   [2.2 Mô tả công nghệ và hệ thống](#22-mô-tả-công-nghệ-và-hệ-thống)
-    *   [2.3 Cấu trúc thư mục và vai trò các thành phần](#23-cấu-trúc-thư-mục-và-vai-trò-các-thành-phần)
-    *   [2.4 Luồng xử lý dữ liệu chi tiết (Deep Dive Pipeline)](#24-luồng-xử-lý-dữ-liệu-chi- tiết-deep-dive-pipeline)
-    *   [2.5 Tiền xử lý văn bản tiếng Việt (NLP Preprocessing)](#25-tiền-xử-lý-văn-bản-tiếng-việt-nlp-preprocessing)
-    *   [2.6 Mô hình toán học trích xuất đặc trưng: TF-IDF & N-grams](#26-mô-hình-toán-học-trích-xuất-đặc-trưng-tf-idf--n-grams)
-    *   [2.7 Lý giải xây dựng mô hình Random Forest (Ensemble Learning)](#27-lý-giải-xây-dựng-mô-hình-random-forest-ensemble-learning)
-    *   [2.8 Hệ thống phân tích Logic Heuristic & Fact-checking](#28-hệ-thống-phân-tích-logic-heuristic--fact-checking)
-    *   [2.9 Giải pháp Hybrid: Kết hợp xác suất và Ràng buộc logic](#29-giải-pháp-hybrid-kết-hợp-xác-suất-và-ràng-buộc-logic)
-*   [Phần 3. KẾT LUẬN VÀ KIẾN NGHỊ](#phần-3-kết-luận-và-kiến-nghị)
-*   [Phần 4. BẢNG SO SÁNH CHI TIẾT 8 MÔ HÌNH PHÂN LOẠI TIN GIẢ](#phần-4-bảng-so-sánh-chi-tiết-8-mô-hình-phân-loại-tin-giả)
-*   [Phần 5. THÔNG TIN THÀNH VIÊN](#phần-5-thông-tin-thành-viên)
-*   [DANH SÁCH TÀI LIỆU THAM KHẢO](#danh-sách-tài-liệu-tham-khảo)
+## Mục lục
 
----
+- [Tổng quan](#tổng-quan)
+- [Công nghệ sử dụng](#công-nghệ-sử-dụng)
+- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
+- [Cài đặt](#cài-đặt)
+- [Huấn luyện mô hình](#huấn-luyện-mô-hình)
+- [Chạy ứng dụng web](#chạy-ứng-dụng-web)
+- [Luồng xử lý](#luồng-xử-lý)
+- [Kết quả hiện tại](#kết-quả-hiện-tại)
+- [Ghi chú dữ liệu](#ghi-chú-dữ-liệu)
 
-## Phần 1. TỔNG QUAN
+## Tổng quan
 
-### 1.1 Giới thiệu đề tài
-Sự phát triển của Internet đã thay đổi cách con người tiếp nhận thông tin, nhưng đồng thời cũng tạo ra kẽ hở cho sự lan truyền của tin giả. Tại Việt Nam, tin giả thường xuất hiện dưới dạng các bài chia sẻ kinh nghiệm y khoa sai lệch, các cơ hội đầu tư tiền ảo lừa đảo hoặc tin đồn tận thế gây hoang mang dư luận. Đề tài này giải quyết bài toán cấp thiết: **Làm thế nào để máy tính có thể phân biệt được đâu là thông tin chính thống và đâu là thông tin rác?**
+Người dùng nhập nội dung tin tức tiếng Việt trên giao diện web. Hệ thống sẽ:
 
-### 1.2 Tóm tắt lý thuyết và nghiên cứu liên quan
-Các phương pháp nhận diện tin giả truyền thống thường dựa trên danh sách đen (black-list) các trang web. Tuy nhiên, phương pháp này thất bại trước các trang web mới mọc lên hàng ngày. Nghiên cứu hiện đại chuyển dịch sang **Học máy (Machine Learning)** và **Học sâu (Deep Learning)**.
-*   **Nghiên cứu của Vosoughi et al. (2018) [1]** đã chỉ ra tin giả trên mạng xã hội lan truyền nhanh hơn tin thật gấp 6 lần.
-*   **Tại Việt Nam**, thư viện `Underthesea` của nhóm nghiên cứu NLP Việt Nam [2] đã đặt nền móng cho việc xử lý ngôn ngữ tự nhiên có độ chính xác cao cho tiếng Việt, đặc biệt là bài toán tách từ (Word Segmentation).
+1. Làm sạch và tách từ nội dung đầu vào.
+2. Biến đổi văn bản thành vector TF-IDF.
+3. Dự đoán bằng mô hình Logistic Regression đã huấn luyện.
+4. Trả về nhãn dự đoán và xác suất của từng lớp.
 
-### 1.3 Nhiệm vụ đồ án
-*   **Tính cấp thiết:** Bảo vệ người dùng mạng xã hội khỏi các tác động tiêu cực của thông tin sai lệch.
-*   **Lý do hình thành:** Khắc phục nhược điểm của các mô hình AI thuần túy thường dễ bị đánh lừa bởi phong cách viết báo chính thống của tin giả.
-*   **Ý nghĩa khoa học:** Thử nghiệm mô hình lai ghép (Hybrid) kết hợp thế mạnh của thống kê (ML) và tri thức chuyên gia (Rules).
-*   **Mục tiêu:** Đạt độ phủ (Recall) tin giả trên 95%.
-*   **Phạm vi:** Tin tức tiếng Việt trong các lĩnh vực: Y tế, Tài chính, Công nghệ, Việc làm.
+Nhãn dữ liệu đang dùng:
 
-### 1.4 Cấu trúc đồ án
-Đồ án được chia làm 4 phần chính:
-1.  **Tổng quan:** Giới thiệu bối cảnh và mục tiêu.
-2.  **Cơ sở lý thuyết:** Trình bày chi tiết toán học và kỹ thuật.
-3.  **Kết luận:** Đánh giá kết quả thực nghiệm.
-4.  **Thông tin & Tài liệu:** Trích dẫn nguồn gốc dữ liệu và công nghệ.
+- `0`: Real News
+- `1`: Fake News
 
----
+## Công nghệ sử dụng
 
-## Phần 2. CƠ SỞ LÝ THUYẾT
+- Python
+- Django
+- Pandas
+- Scikit-learn
+- Joblib
+- Underthesea
+- NumPy
+- TQDM
+- SQLite cho cấu hình database mặc định của Django
 
-### 2.1 Định nghĩa và phân loại tin giả (Fake News Taxonomy)
-Hệ thống phân loại tin giả thành các nhóm con để xử lý chuyên biệt:
-*   **Misleading Content (Nội dung gây hiểu lầm):** Sử dụng thông tin thật trong ngữ cảnh sai.
-*   **Fabricated Content (Nội dung dàn dựng):** 100% là giả (Ví dụ: Chữa ung thư bằng nước chanh).
-*   **Imposter Content (Nội dung giả danh):** Giả danh NASA, Bộ Công an để tăng độ tin cậy.
+## Cấu trúc thư mục
 
-### 2.2 Mô tả công nghệ và hệ thống
-Hệ thống được xây dựng trên nền tảng Fullstack hiện đại:
-*   **Backend:** Python 3.12, FastAPI (framework tốc độ cao nhất hiện nay của Python).
-*   **Machine Learning:** Scikit-learn (công nghiệp tiêu chuẩn cho ML).
-*   **Frontend:** React 18, Vite (tốc độ build cực nhanh), TailwindCSS (thiết kế UI linh hoạt).
-*   **Database:** Hệ thống tệp phẳng CSV để lưu trữ dataset cho việc huấn luyện nhanh.
-
-### 2.3 Cấu trúc thư mục và vai trò các thành phần
-```bash
-D:\BTVN LTWinS4\Fake_News_Detect\
-├── main.py                 # Core API: Tiếp nhận request và điều phối logic Hybrid
-├── data\
-│   └── fake_news.csv       # Dataset: Hơn 4.000 mẫu tin được gán nhãn thủ công
-├── models\
-│   └── fake_news_model.pkl # Model: Kết quả sau khi huấn luyện (dạng nhị phân)
-├── src\
-│   ├── preprocess.py       # NLP: Module tiền xử lý văn bản
-│   └── train.py            # Trainer: Chứa thuật toán huấn luyện và đánh giá
-└── frontend\               # UI: Toàn bộ mã nguồn giao diện React
+```text
+Fake_News_Detect/
+├── config/                         # Cấu hình Django project
+├── detector/                       # Django app xử lý giao diện và dự đoán
+│   ├── services.py                 # Load model và hàm predict_news
+│   ├── views.py                    # View nhận form POST từ người dùng
+│   └── templates/detector/
+│       └── index.html              # Giao diện nhập tin tức và hiển thị kết quả
+├── data/
+│   ├── train/
+│   │   ├── fake_news.csv
+│   │   ├── train_data.csv
+│   │   └── update_train_data.csv
+│   ├── val/
+│   │   ├── val_data.csv
+│   │   └── update_val_data.csv
+│   └── test/
+│       └── fix_test_data.csv
+├── models/
+│   ├── logistic_regression.pkl     # Model đã huấn luyện
+│   └── models_metrics.json         # Chỉ số đánh giá model
+├── src/
+│   ├── preprocess.py               # Làm sạch văn bản và tách từ
+│   ├── split_data.py               # Script hỗ trợ chia dữ liệu
+│   ├── train.py                    # Huấn luyện model
+│   └── show_metrics.py             # Script xem metrics
+├── manage.py
+├── requirements.txt
+└── run_all.bat                     # Chạy kiểm tra, migrate và server Django
 ```
 
-### 2.4 Luồng xử lý dữ liệu chi tiết (Deep Dive Pipeline)
-1.  **Request Stage:** Người dùng dán văn bản vào Frontend -> Gửi đến endpoint `/predict`.
-2.  **NLP Stage:** Văn bản thô được `clean_text` làm sạch và tách từ bằng `underthesea`.
-3.  **ML Inference Stage:** Vector hóa văn bản bằng TF-IDF -> Đưa vào Random Forest để lấy xác suất thô (ML Probability).
-4.  **Heuristic Stage:** Duyệt qua 7 nhóm Scam Categories và Debunking Keywords để tính điểm phạt/thưởng (Heuristic Boost).
-5.  **Hybrid Stage:** Tổng hợp ML Prob và Heuristic Boost -> Tính toán nhãn cuối cùng (Final Label).
-6.  **Response Stage:** Trả về kết quả kèm bản giải trình chi tiết (Reasoning).
+## Cài đặt
 
-### 2.5 Tiền xử lý văn bản tiếng Việt (NLP Preprocessing)
-Tiếng Việt là ngôn ngữ đơn lập, ranh giới từ không phải lúc nào cũng là dấu cách.
-*   **Làm sạch:** Chuyển chữ thường, loại bỏ các ký tự rác không mang ngữ nghĩa.
-*   **Bảo toàn cảm xúc:** Giữ lại các dấu câu `!` và `?` để mô hình học được sự "giật gân" của tin giả.
-*   **Word Segmentation:** Sử dụng thuật toán của `underthesea` để nhóm các từ ghép (Ví dụ: "bí mật" thành "bí_mật"). Nếu không có bước này, máy tính sẽ hiểu sai nghĩa của từ.
+Tạo và kích hoạt môi trường ảo:
 
-### 2.6 Mô hình toán học trích xuất đặc trưng: TF-IDF & N-grams
-Hệ thống chuyển văn bản thành vector số qua công thức TF-IDF:
-$$TF(t, d) = \frac{\text{Số lần từ t xuất hiện trong bài d}}{\text{Tổng số từ trong bài d}}$$
-$$IDF(t, D) = \log\left(\frac{\text{Tổng số bài báo D}}{\text{Số bài báo chứa từ t}}\right)$$
-**N-grams (1, 3):** Cho phép mô hình nhìn thấy các cụm từ quan trọng như "lừa_đảo_tài_chính" thay vì chỉ nhìn riêng lẻ từng từ "lừa", "đảo".
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
 
-### 2.7 Lý giải xây dựng mô hình Random Forest (Ensemble Learning)
-Hệ thống sử dụng **Random Forest** thay vì Logistic Regression truyền thống bởi:
-*   **Bagging (Bootstrap Aggregating):** Giúp mô hình học từ các tập con ngẫu nhiên của dữ liệu, giảm thiểu nhiễu.
-*   **Feature Randomness:** Mỗi cây quyết định chỉ được nhìn một số đặc trưng ngẫu nhiên, giúp mô hình đa dạng hóa cách nhìn nhận vấn đề.
-*   **Gini Impurity:** Thuật toán tự động tìm ra những từ khóa có khả năng phân loại tin giả tốt nhất để ưu tiên kiểm tra.
+Cài thư viện:
 
-### 2.8 Hệ thống phân tích Logic Heuristic & Fact-checking
-Đây là giải pháp độc đáo để xử lý các tin tức "quá mới" hoặc "quá phi lý":
-*   **Scam Categories:** Phân tích từ vựng thuộc 7 nhóm rủi ro: Y tế, Thiên tai, Làm giàu nhanh, Tiền ảo, Tuyển dụng và Thuyết âm mưu, Công nghệ.
-*   **Debunking Detection:** Nhận diện ngữ cảnh đính chính (Ví dụ: "Bộ Y tế bác bỏ thông tin..."). Nếu bài viết nhắc đến tin giả nhưng với mục đích bác bỏ, hệ thống sẽ đánh giá đó là **Tin thật**.
+```bash
+pip install -r requirements.txt
+```
 
-### 2.9 Giải pháp Hybrid: Kết hợp xác suất và Ràng buộc logic
-Mô hình cuối cùng tuân theo công thức ràng buộc:
-$$P_{final} = \min(0.99, P_{ML} + \sum Boost_{heuristic})$$
-Trong đó:
-*   $P_{ML}$: Xác suất do AI dự đoán dựa trên phong cách viết.
-*   $Boost_{heuristic}$: Điểm phạt cho các nội dung phi lý đã được định danh.
-Giải pháp này giúp hệ thống đạt độ chính xác **99%** trong việc nhận diện các mẫu tin giả nguy hiểm.
+## Huấn luyện mô hình
 
----
+Chạy lệnh:
 
-## Phần 3. KẾT LUẬN VÀ KIẾN NGHỊ
+```bash
+python src/train.py
+```
 
-### Kết luận
-Dự án đã hoàn thành mục tiêu xây dựng một công cụ kiểm chứng tin tức thông minh. Sự kết hợp giữa **Machine Learning** và **Heuristic Logic** đã chứng minh được tính hiệu quả vượt trội so với các phương pháp đơn lẻ, đặc biệt là trong việc giảm tỷ lệ nhận nhầm (False Positive) các bài viết đính chính khoa học.
+Script huấn luyện sẽ:
 
-### Đóng góp đạt được
-*   Phát triển thành công mô hình lai (Hybrid) cho tiếng Việt.
-*   Xây dựng bộ từ khóa nhận diện tin giả toàn diện nhất cho các kịch bản lừa đảo phổ biến tại Việt Nam năm 2024-2025.
-*   Giao diện người dùng minh bạch, có bản giải trình chi tiết về "quy trình tư duy" của AI.
+- Đọc dữ liệu từ `data/train`, `data/val` và `data/test`.
+- Chuẩn hóa tên cột văn bản và nhãn.
+- Làm sạch dữ liệu, loại bỏ dòng thiếu, dòng rỗng và bản ghi trùng trong từng split.
+- Huấn luyện pipeline gồm `TfidfVectorizer(max_features=5000)` và `LogisticRegression(max_iter=1000)`.
+- Lưu model vào `models/logistic_regression.pkl`.
+- Lưu chỉ số đánh giá vào `models/models_metrics.json`.
 
-### Kiến nghị
-*   **Cập nhật dữ liệu:** Cần bổ sung dữ liệu tin giả hàng ngày để mô hình không bị lạc hậu.
-*   **Deep Learning:** Khuyến nghị nâng cấp lên các mô hình Transformer (như BERT) nếu có tài nguyên phần cứng tốt hơn trong tương lai.
+## Chạy ứng dụng web
 
----
-## Phần 4. BẢNG SO SÁNH CHI TIẾT 8 MÔ HÌNH PHÂN LOẠI TIN GIẢ
+Cách nhanh nhất trên Windows:
 
-Bảng dưới đây so sánh 8 mô hình được triển khai trong hệ thống, bao gồm 5 mô hình Machine Learning truyền thống và 3 mô hình Deep Learning tiên tiến (Transformers).
+```bash
+run_all.bat
+```
 
-| Tiêu chí | Logistic Regression | Support Vector Machine (SVM) | Decision Tree | Naive Bayes | Random Forest | PhoBERT | ViBERT | SBERT (Vietnamese) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1. Khái niệm** | Thuật toán phân loại dựa trên xác suất, sử dụng hàm Sigmoid để đưa ra kết quả 0 hoặc 1. | Tìm siêu phẳng tối ưu để phân tách dữ liệu với khoảng cách lề (Margin) lớn nhất. | Cấu trúc phân nhánh dạng cây, đưa ra quyết định dựa trên các câu hỏi Đúng/Sai. | Dựa trên định lý Bayes với giả định các đặc trưng độc lập với nhau. | Tập hợp (Ensemble) của nhiều cây quyết định để bầu chọn kết quả cuối cùng. | Mô hình Transformer (BERT) được huấn luyện chuyên biệt cho tiếng Việt bởi VinAI. | Biến thể BERT cho tiếng Việt được phát triển bởi FPT AI. | Sentence-BERT tối ưu hóa việc tạo vector biểu diễn cho toàn bộ câu văn. |
-| **2. Nguyên lý hoạt động** | Tính tổng trọng số của các từ khóa (TF-IDF) rồi đi qua hàm kích hoạt Sigmoid. | Sử dụng các điểm dữ liệu biên (Support Vectors) để xác định ranh giới phân loại. | Chia nhỏ dữ liệu dựa trên chỉ số Entropy hoặc Gini để đạt độ tinh khiết cao nhất. | Tính xác suất hậu nghiệm dựa trên tần suất xuất hiện của từ ngữ trong tập tin thật/giả. | Sử dụng kỹ thuật Bagging và lấy mẫu ngẫu nhiên để giảm thiểu hiện tượng quá khớp (overfitting). | Cơ chế Self-Attention giúp hiểu mối quan hệ giữa các từ trong câu theo cả hai chiều. | Sử dụng kiến trúc BERT-base cased, tập trung vào các đặc trưng ngữ pháp và thực thể. | Sử dụng kiến trúc Siamese Network để học các câu có ý nghĩa tương đương trong không gian vector. |
-| **3. Luồng xử lý** | Preprocess -> TF-IDF -> Logistic Regression | Preprocess -> TF-IDF -> SVM Kernel | Preprocess -> TF-IDF -> Cây quyết định | Preprocess -> TF-IDF -> Multinomial NB | Preprocess -> TF-IDF -> Random Forest | Preprocess -> Tokenization -> Transformer Layers -> Classification Head | Preprocess -> Tokenization (cased) -> BERT Layers -> Classification Head | Preprocess -> Tokenization -> Sentence Embedding -> Classification Head |
-| **4. Ưu điểm** | Tốc độ cực nhanh, dễ giải thích trọng số của từng từ khóa. | Hiệu quả trong không gian nhiều chiều, độ chính xác ổn định. | Trực quan, dễ hiểu, không cần chuẩn hóa dữ liệu phức tạp. | Cực nhanh, hiệu quả với dữ liệu văn bản ít từ hoặc tập dữ liệu nhỏ. | Độ chính xác cao, bền vững, ít bị nhiễu bởi các điểm dữ liệu lạ. | Hiểu ngữ cảnh tiếng Việt sâu sắc, xử lý tốt từ lóng và ngữ nghĩa phức tạp. | Hiệu quả với văn bản tiếng Việt có cấu trúc chính quy, báo chí. | Tạo ra vector câu chất lượng cao, nắm bắt ý nghĩa toàn cục của bài viết. |
-| **5. Nhược điểm** | Khó xử lý các mối quan hệ phi tuyến phức tạp giữa các từ. | Thời gian huấn luyện lâu khi dữ liệu lớn, khó giải thích kết quả. | Dễ bị quá khớp (học vẹt) nếu cây quá sâu. | Giả định "độc lập" thường không đúng trong ngôn ngữ tự nhiên. | Tốn tài nguyên RAM, thời gian chạy lâu hơn cây đơn lẻ. | Đòi hỏi GPU mạnh, tốc độ dự đoán (Inference) chậm hơn ML truyền thống. | Tương tự PhoBERT, đòi hỏi tài nguyên tính toán cao. | Phức tạp trong việc tinh chỉnh (fine-tuning) cho các tác vụ cụ thể. |
-| **7. Ứng dụng hiệu quả nhất** | Phân loại nhanh các tin tức ngắn, rõ ràng về từ vựng. | Khi cần độ chính xác cao trên tập dữ liệu trung bình. | Dùng làm mô hình cơ sở để hiểu các quy tắc phân loại đơn giản. | Phân loại rác (Spam) hoặc tin tức dựa trên từ khóa đặc trưng. | Khi cần một mô hình ML mạnh mẽ và ổn định trên mọi loại dữ liệu. | **Tin giả tinh vi, ẩn dụ, tin tức mạng xã hội có ngữ cảnh phức tạp.** | **Tin tức báo chí chính thống, văn bản có tính học thuật cao.** | **So sánh sự tương đồng giữa các tin tức, phát hiện tin giả sao chép.** |
+Hoặc chạy thủ công:
 
----
+```bash
+python manage.py check
+python manage.py migrate
+python manage.py runserver
+```
 
-### Phân tích chuyên sâu về hiệu quả ứng dụng
+Sau đó mở trình duyệt tại:
 
-1.  **Nhóm Truyền thống (Logistic, SVM, NB, DT, RF):**
-    *   **Hiệu quả nhất:** Khi bạn cần một hệ thống phản hồi tức thì (Real-time) và tài nguyên phần cứng hạn chế. 
-    *   **Trường hợp lý tưởng:** Các bài báo có xu hướng lặp đi lặp lại các từ khóa "lừa đảo", "trúng thưởng", "khẩn cấp" một cách rõ ràng.
+```text
+http://127.0.0.1:8000/
+```
 
-2.  **Nhóm PhoBERT & ViBERT:**
-    *   **Hiệu quả nhất:** Phân tích các bài đăng trên mạng xã hội (Facebook, TikTok) nơi câu văn không đầy đủ hoặc sử dụng từ ngữ đa nghĩa.
-    *   **Điểm mạnh:** Có khả năng phân biệt từ "đường" trong "đường ăn" và "đường đi" nhờ cơ chế Attention, điều mà TF-IDF hoàn toàn thất bại.
+## Luồng xử lý
 
-3.  **Nhóm SBERT:**
-    *   **Hiệu quả nhất:** Khi cần phát hiện một tin giả được xào nấu lại từ một tin thật. SBERT sẽ nhận diện được ý nghĩa của hai câu văn là tương đồng dù cách dùng từ có thể khác nhau.
----
-*Bảng so sánh này được tổng hợp dựa trên cấu trúc thư mục `models/` và mã nguồn trong `src/` của dự án.*
----
+1. Người dùng nhập nội dung tin tức trên trang chủ.
+2. `detector/views.py` nhận nội dung từ form POST.
+3. `detector/services.py` gọi `predict_news(text)`.
+4. `src/preprocess.py` làm sạch văn bản:
+   - chuyển về chữ thường;
+   - loại bỏ ký tự đặc biệt không cần thiết;
+   - giữ lại dấu `!` và `?`;
+   - tách từ bằng `underthesea.word_tokenize`.
+5. Model trong `models/logistic_regression.pkl` dự đoán nhãn và xác suất.
+6. Giao diện hiển thị kết quả:
+   - nhãn dự đoán;
+   - xác suất Real News;
+   - xác suất Fake News;
+   - văn bản sau tiền xử lý.
 
-## DANH SÁCH TÀI LIỆU THAM KHẢO
+## Kết quả hiện tại
 
-1.  **Vosoughi, S., Roy, D., & Aral, S. (2018).** *The spread of true and false news online*. Science, 359(6380), 1146-1151. [Link bài báo](https://www.science.org/doi/10.1126/science.aap9559). (Truy cập: 07/03/2026).
-2.  **Underthesea Team.** *Vietnamese Natural Language Processing Toolkit*. [https://github.com/undertheseanlp/underthesea](https://github.com/undertheseanlp/underthesea). (Truy cập: 07/03/2026).
-3.  **FastAPI Framework.** *Documentation on high-performance Python APIs*. [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/). (Truy cập: 07/03/2026).
-4.  **Scikit-Learn.** *Random Forest Classifier Documentation*. [https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html). (Truy cập: 07/03/2026).
-5.  **Cục An toàn thông tin - Bộ Thông tin và Truyền thông.** *Cổng không gian mạng quốc gia - Nhận diện tin giả*. [https://khonggianmang.vn/](https://khonggianmang.vn/). (Truy cập: 07/03/2026).
+Theo file `models/models_metrics.json`, model hiện tại đạt:
+
+| Metric | Giá trị |
+| --- | ---: |
+| Accuracy | 0.9379 |
+| Precision | 0.9067 |
+| Recall | 0.9577 |
+| F1-score | 0.9315 |
+| Training duration | 0.5816 giây |
+
+Confusion matrix:
+
+```text
+[[83, 7],
+ [ 3, 68]]
+```
+
+## Ghi chú dữ liệu
+
+`src/train.py` ưu tiên các file sau khi huấn luyện:
+
+- Train: `data/train/fake_news.csv`, `data/train/update_train_data.csv`
+- Validation: `data/val/val_data.csv`
+- Test: `data/test/fix_test_data.csv`
+
+Các cột văn bản được hỗ trợ:
+
+- `post_message`
+- `Maintext`
+- `maintext`
+- `text`
+- `content`
+
+Các cột nhãn được hỗ trợ:
+
+- `Label`
+- `label`
+
+## Hướng phát triển
+
+- Bổ sung dữ liệu mới để giảm lệch theo thời gian.
+- Cải thiện giao diện tiếng Việt và thông báo lỗi thân thiện hơn.
+- So sánh thêm các mô hình như SVM, Random Forest hoặc PhoBERT.
+- Bổ sung kiểm thử tự động cho tiền xử lý, huấn luyện và dự đoán.
