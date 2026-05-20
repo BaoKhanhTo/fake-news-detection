@@ -1,231 +1,200 @@
-import pandas as pd
-import joblib
+import json
 import os
 import sys
-import numpy as np
-import json
 import time
-import logging
-import warnings
-from tqdm import tqdm
-from sklearn.model_selection import train_test_split
+from pathlib import Path
+
+import joblib
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, precision_score, recall_score
-from gensim.models.doc2vec import Doc2Vec, TaggedDocument
+from tqdm import tqdm
 
-# Chan cac canh bao va log he thong de hien thi sach se
-warnings.filterwarnings("ignore")
-logging.getLogger('gensim').setLevel(logging.ERROR)
-
-# Add parent dir to path to import src
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from src.preprocess import clean_text
 
-def print_header(step, title):
-    print(f"\n" + "="*80)
-    print(f" [{step}/7] {title.upper()}")
-    print("="*80)
-    time.sleep(1.2)
 
-def load_data_from_dir(dir_path):
-    if not os.path.exists(dir_path):
-        return pd.DataFrame()
-    all_files = [os.path.join(dir_path, f) for f in os.listdir(dir_path) if f.endswith('.csv')]
-    if not all_files:
-        return pd.DataFrame()
-    
-    dfs = []
-    for f in all_files:
-        try:
-            temp_df = pd.read_csv(f)
-            text_col = next((c for c in ['post_message', 'text', 'content', 'Maintext', 'maintext'] if c in temp_df.columns), None)
-            label_col = next((c for c in temp_df.columns if c.lower() == 'label'), None)
-            
-            if text_col and label_col:
-                temp_df = temp_df[[text_col, label_col]].rename(columns={text_col: 'text', label_col: 'label'})
-                dfs.append(temp_df)
-                print(f"    [+] Loaded: {os.path.basename(f)} ({len(temp_df)} records)")
-        except:
-            pass
-            
-    if not dfs: return pd.DataFrame()
-    return pd.concat(dfs, ignore_index=True)
+TEXT_COLUMNS = ["post_message", "Maintext", "maintext", "text", "content"]
+LABEL_COLUMNS = ["Label", "label"]
 
-def train_all_models(data_dir, models_dir):
-    start_total = time.time()
-    
-    # --- BUOC 1: DOC DU LIEU ---
-    print_header(1, "Khoi tao va Doc du lieu nguon")
-    df_train = load_data_from_dir(os.path.join(data_dir, 'train'))
-    df_val = load_data_from_dir(os.path.join(data_dir, 'val'))
-    df_test = load_data_from_dir(os.path.join(data_dir, 'test'))
+PREFERRED_FILES = {
+    "train": [
+        Path("train/fake_news.csv"),
+        Path("train/update_train_data.csv"),
+    ],
+    "validation": [
+        Path("val/val_data.csv"),
+    ],
+    "test": [
+        Path("test/fix_test_data.csv"),
+    ],
+}
 
-    if df_train.empty or df_test.empty:
-        print(f" [ERROR] Khong tim thay du lieu hop le.")
-        return
-    
-    print(f"  - Tong so mau du lieu: Train={len(df_train)}, Val={len(df_val)}, Test={len(df_test)}")
 
-    # --- BUOC 2: PREPROCESSING ---
-    print_header(2, "Tien hanh lam sach van ban")
-    start_pre = time.time()
-    tqdm.pandas(desc="    Tien trinh lam sach (%)")
-    
-    df_train['clean_text'] = df_train['text'].progress_apply(clean_text)
-    df_val['clean_text'] = df_val['text'].progress_apply(clean_text)
-    df_test['clean_text'] = df_test['text'].progress_apply(clean_text)
-    
-    X_train, y_train = df_train['clean_text'], df_train['label']
-    X_val, y_val = df_val['clean_text'], df_val['label']
-    X_test, y_test = df_test['clean_text'], df_test['label']
-    
-    print(f"  - Thoi gian xu ly: {time.time() - start_pre:.2f}s")
+def find_column(columns, candidates):
+    for candidate in candidates:
+        if candidate in columns:
+            return candidate
+    return None
 
-    # --- BUOC 3: TF-IDF VECTORIZATION ---
-    print_header(3, "Trich xuat dac trung van ban (TF-IDF)")
-    start_tfidf = time.time()
-    
-    print(f"  - [1/4] Khoi tao cau hinh TF-IDF (Max features: 5000)...")
-    time.sleep(0.5)
-    tfidf_vectorizer = TfidfVectorizer(max_features=5000)
-    
-    print(f"  - [2/4] Dang phan tich tu vung tu {len(X_train)} mau van ban...")
-    tfidf_vectorizer.fit(X_train)
-    
-    vocab_size = len(tfidf_vectorizer.vocabulary_)
-    print(f"  - [3/4] Dang tinh toan trong so IDF cho {vocab_size} dac trung...")
-    time.sleep(0.5)
-    
-    print(f"  - [4/4] Dang dong goi va luu tru Vectorizer...")
-    joblib.dump(tfidf_vectorizer, os.path.join(models_dir, "tfidf_vectorizer.pkl"))
-    
-    print(f"  - Hoan tat. Thoi gian thuc hien: {time.time() - start_tfidf:.2f}s")
 
-    # --- BUOC 4: DOC2VEC ---
-    print_header(4, "Xay dung Vector dai dien (Doc2Vec)")
-    start_d2v = time.time()
-    X_all = pd.concat([X_train, X_val, X_test])
-    tagged_data = [TaggedDocument(words=text.split(), tags=[str(i)]) for i, text in enumerate(X_all)]
-    
-    d2v_model = Doc2Vec(vector_size=100, window=5, min_count=2, workers=4, epochs=40)
-    print(f"  - Dang khoi tao tu vung (Vocabulary size: {len(X_all)} docs)...")
-    d2v_model.build_vocab(tagged_data)
-    
-    print(f"  - Dang huan luyen Vector hoa:")
-    pbar = tqdm(total=40, desc="    Tien do huan luyen (%)")
-    for epoch in range(40):
-        d2v_model.train(tagged_data, total_examples=d2v_model.corpus_count, epochs=1)
-        pbar.update(1)
-    pbar.close()
-    
-    d2v_model.save(os.path.join(models_dir, "doc2vec.model"))
-    print(f"  - Hoan tat. Thoi gian thuc hien: {time.time() - start_d2v:.2f}s")
+def normalize_frame(df, source_name):
+    text_col = find_column(df.columns, TEXT_COLUMNS)
+    label_col = find_column(df.columns, LABEL_COLUMNS)
 
-    # --- BUOC 5: CLASSIFIERS ---
-    print_header(5, "Huan luyen cac thuat toan Phan loai")
-    
-    classifiers = [
-        ('Logistic Regression', LogisticRegression(max_iter=1000), 'logistic_regression'),
-        ('SVM (Support Vector)', SVC(probability=True), 'svm'),
-        ('Random Forest', RandomForestClassifier(n_estimators=100), 'random_forest'),
-        ('Naive Bayes', MultinomialNB(), 'naive_bayes'),
-        ('Decision Tree', DecisionTreeClassifier(), 'decision_tree')
-    ]
+    if not text_col or not label_col:
+        raise ValueError(f"{source_name} is missing a supported text or label column.")
 
-    models_info = {}
-    metrics_path = os.path.join(models_dir, "models_metrics.json")
-    if os.path.exists(metrics_path):
-        try:
-            with open(metrics_path, "r") as f: models_info = json.load(f)
-        except: pass
+    return df[[text_col, label_col]].rename(columns={text_col: "text", label_col: "label"})
 
-    # Danh sach mo ta dac trung cho tung mo hinh
-    model_descriptions = {
-        'logistic_regression': {
-            'train': 'Dang tim kiem trong so toi uu cho phuong trinh Logistic...',
-            'eval': 'Dang kiem tra kha nang phan loai tuyen tinh trên tap Val & Test...'
-        },
-        'svm': {
-            'train': 'Dang xac dinh sieu phang (Hyperplane) phan tach du lieu voi le lon nhat...',
-            'eval': 'Dang do luong do chinh xac cua sieu phang tren du lieu moi...'
-        },
-        'random_forest': {
-            'train': 'Dang xay dung tap hop cac cay quyet dinh (Ensemble of Trees)...',
-            'eval': 'Dang tong hop y kien tu cac cay de dua ra ket qua cuoi cung...'
-        },
-        'naive_bayes': {
-            'train': 'Dang tinh toan xac suat Bayes dua tren tan suat tu vung...',
-            'eval': 'Dang ap dung quy tac Bayes de du doan nhan cho du lieu...'
-        },
-        'decision_tree': {
-            'train': 'Dang phan nhanh du lieu de tao cau truc cay quyet dinh...',
-            'eval': 'Dang duyet cay quyet dinh de tim nhan cho cac mau kiem thu...'
-        }
+
+def load_split(split_name, files):
+    frames = []
+    report = []
+
+    for file_path in files:
+        if not file_path.exists():
+            print(f"[WARN] Missing {split_name} file: {file_path}")
+            continue
+
+        raw_df = pd.read_csv(file_path)
+        normalized = normalize_frame(raw_df, str(file_path))
+        frames.append(normalized)
+        report.append({"file": str(file_path), "rows": len(normalized)})
+
+    if not frames:
+        raise FileNotFoundError(f"No valid CSV files found for {split_name}.")
+
+    return pd.concat(frames, ignore_index=True), report
+
+
+def clean_split(df):
+    before = len(df)
+    df = df.dropna(subset=["text", "label"]).copy()
+    tqdm.pandas(desc="Cleaning text")
+    df["text"] = df["text"].progress_apply(clean_text)
+    df["label"] = pd.to_numeric(df["label"], errors="coerce")
+    df = df.dropna(subset=["label"])
+    df["label"] = df["label"].astype(int)
+    df = df[df["text"].str.strip() != ""]
+    after_missing = len(df)
+    df = df.drop_duplicates(subset=["text", "label"])
+    duplicates_removed = after_missing - len(df)
+
+    return df.reset_index(drop=True), {
+        "rows_before": before,
+        "rows_after": len(df),
+        "duplicates_removed": duplicates_removed,
     }
 
-    for i, (full_name, clf, short_name) in enumerate(classifiers):
-        print(f"\n  ({i+1}/{len(classifiers)}) --- {full_name.upper()} ---")
-        start_step = time.time()
-        desc = model_descriptions.get(short_name, {'train': 'Dang huan luyen...', 'eval': 'Dang danh gia...'})
-        
-        pipeline = Pipeline([
-            ('tfidf', TfidfVectorizer(max_features=5000, vocabulary=tfidf_vectorizer.vocabulary_)),
-            ('clf', clf)
-        ])
-        
-        print(f"    [1] Thuc thi: {desc['train']}")
-        pipeline.fit(X_train, y_train)
-        
-        print(f"    [2] Danh gia: {desc['eval']}")
-        y_val_pred = pipeline.predict(X_val)
-        val_acc = accuracy_score(y_val, y_val_pred)
-        
-        y_test_pred = pipeline.predict(X_test)
-        acc = accuracy_score(y_test, y_test_pred)
-        f1 = f1_score(y_test, y_test_pred, zero_division=0)
-        prec = precision_score(y_test, y_test_pred, zero_division=0)
-        rec = recall_score(y_test, y_test_pred, zero_division=0)
-        
-        # Tinh Báo động giả (False Alarm Rate)
-        cm = confusion_matrix(y_test, y_test_pred)
-        tn, fp, fn, tp = cm.ravel()
-        far = fp / (fp + tn) if (fp + tn) > 0 else 0
-        
-        duration = time.time() - start_step
-        print(f"    [3] Chi so: Acc={acc*100:.1f}% | F1={f1*100:.1f}% | Prec={prec*100:.1f}% | Rec={rec*100:.1f}%")
-        print(f"    [4] FAR: {far*100:.2f}% (Ty le bao dong gia tren tin that)")
-        print(f"    [5] Thoi gian thuc hien: {duration:.2f} giay")
-        
-        models_info[short_name] = {
-            "accuracy": float(acc),
-            "f1": float(f1),
-            "precision": float(prec),
-            "recall": float(rec),
-            "false_alarm_rate": float(far),
-            "duration": float(duration),
-            "confusion_matrix": cm.tolist()
-        }
-        joblib.dump(pipeline, os.path.join(models_dir, f"{short_name}.pkl"))
 
-    # --- BUOC 6: LUU KET QUA ---
-    print_header(6, "Luu tru bao cao Metrics")
-    with open(metrics_path, "w") as f:
-        json.dump(models_info, f, indent=4)
-    print(f"  - Da cap nhat tep tin: models/models_metrics.json (San sang cho Frontend)")
+def print_split_report(split_name, file_report, cleaning_report, df):
+    print(f"\n{split_name.upper()} DATA")
+    for item in file_report:
+        print(f"  - {item['file']}: {item['rows']} rows")
+    print(f"  - Rows before cleaning: {cleaning_report['rows_before']}")
+    print(f"  - Rows after cleaning: {cleaning_report['rows_after']}")
+    print(f"  - Duplicates removed: {cleaning_report['duplicates_removed']}")
+    print("  - Label distribution:")
+    print(df["label"].value_counts().sort_index().to_string())
 
-    # --- BUOC 7: TONG KET ---
-    print_header(7, "Tong ket toan bo quy trinh")
-    print(f"  - Tong thoi gian chay: {time.time() - start_total:.2f} giay")
-    print("="*80 + "\n")
+
+def warn_cross_split_overlap(train_df, val_df, test_df):
+    checks = [
+        ("train vs validation", train_df, val_df),
+        ("train vs test", train_df, test_df),
+        ("validation vs test", val_df, test_df),
+    ]
+
+    for name, left, right in checks:
+        overlap_count = len(set(left["text"]).intersection(set(right["text"])))
+        if overlap_count:
+            print(f"[WARN] {overlap_count} duplicate text values found across {name}.")
+
+
+def train_logistic_regression(data_dir="data", models_dir="models"):
+    started_at = time.time()
+    data_path = Path(data_dir)
+    os.makedirs(models_dir, exist_ok=True)
+
+    print("Loading preferred dataset files...")
+    train_df, train_files = load_split(
+        "train", [data_path / path for path in PREFERRED_FILES["train"]]
+    )
+    val_df, val_files = load_split(
+        "validation", [data_path / path for path in PREFERRED_FILES["validation"]]
+    )
+    test_df, test_files = load_split(
+        "test", [data_path / path for path in PREFERRED_FILES["test"]]
+    )
+
+    total_before = len(train_df) + len(val_df) + len(test_df)
+
+    train_df, train_cleaning = clean_split(train_df)
+    val_df, val_cleaning = clean_split(val_df)
+    test_df, test_cleaning = clean_split(test_df)
+
+    total_after = len(train_df) + len(val_df) + len(test_df)
+    duplicates_removed = (
+        train_cleaning["duplicates_removed"]
+        + val_cleaning["duplicates_removed"]
+        + test_cleaning["duplicates_removed"]
+    )
+
+    print("\nDATASET REPORT")
+    print(f"Total rows before cleaning: {total_before}")
+    print(f"Total rows after cleaning: {total_after}")
+    print(f"Total duplicates removed within splits: {duplicates_removed}")
+    print_split_report("train", train_files, train_cleaning, train_df)
+    print_split_report("validation", val_files, val_cleaning, val_df)
+    print_split_report("test", test_files, test_cleaning, test_df)
+    warn_cross_split_overlap(train_df, val_df, test_df)
+
+    pipeline = Pipeline(
+        [
+            ("tfidf", TfidfVectorizer(max_features=5000)),
+            ("classifier", LogisticRegression(max_iter=1000)),
+        ]
+    )
+
+    print("\nTraining Logistic Regression with TF-IDF...")
+    train_started_at = time.time()
+    pipeline.fit(train_df["text"], train_df["label"])
+    training_duration = time.time() - train_started_at
+
+    val_predictions = pipeline.predict(val_df["text"])
+    test_predictions = pipeline.predict(test_df["text"])
+
+    print(f"Validation accuracy: {accuracy_score(val_df['label'], val_predictions):.4f}")
+
+    metrics = {
+        "accuracy": float(accuracy_score(test_df["label"], test_predictions)),
+        "precision": float(precision_score(test_df["label"], test_predictions, zero_division=0)),
+        "recall": float(recall_score(test_df["label"], test_predictions, zero_division=0)),
+        "f1_score": float(f1_score(test_df["label"], test_predictions, zero_division=0)),
+        "confusion_matrix": confusion_matrix(test_df["label"], test_predictions).tolist(),
+        "training_duration": float(training_duration),
+    }
+
+    model_path = Path(models_dir) / "logistic_regression.pkl"
+    metrics_path = Path(models_dir) / "models_metrics.json"
+    joblib.dump(pipeline, model_path)
+    with metrics_path.open("w", encoding="utf-8") as metrics_file:
+        json.dump(metrics, metrics_file, indent=4, ensure_ascii=False)
+
+    print("\nSaved artifacts:")
+    print(f"  - {model_path}")
+    print(f"  - {metrics_path}")
+    print(f"Total run duration: {time.time() - started_at:.2f}s")
+
 
 if __name__ == "__main__":
-    DATA_DIR = "data"
-    MODELS_DIR = "models"
-    os.makedirs(MODELS_DIR, exist_ok=True)
-    train_all_models(DATA_DIR, MODELS_DIR)
+    train_logistic_regression()
