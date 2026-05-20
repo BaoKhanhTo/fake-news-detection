@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sys
 import time
@@ -22,6 +23,9 @@ from tqdm import tqdm
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from src.preprocess import clean_text
+
+
+logger = logging.getLogger("fnd.train")
 
 
 TEXT_COLUMNS = ["post_message", "Maintext", "maintext", "text", "content"]
@@ -57,7 +61,7 @@ def normalize_frame(df, source_name):
     label_col = find_column(df.columns, LABEL_COLUMNS)
 
     if not text_col or not label_col:
-        print(f"[WARN] Skipping {source_name}: missing supported text or label column.")
+        logger.warning("Skipping %s: missing supported text or label column.", source_name)
         return None
 
     normalized = df[[text_col, label_col]].rename(
@@ -74,7 +78,7 @@ def load_source_data(data_dir):
     for relative_path in SOURCE_FILES:
         file_path = data_dir / relative_path
         if not file_path.exists():
-            print(f"[WARN] Missing source file: {file_path}")
+            logger.warning("Missing source file: %s", file_path)
             continue
 
         raw_df = pd.read_csv(file_path)
@@ -90,10 +94,9 @@ def load_source_data(data_dir):
     return pd.concat(frames, ignore_index=True), report
 
 
-def print_label_distribution(name, df):
-    print(f"\n{name.upper()} LABEL DISTRIBUTION")
-    print(df["label"].value_counts().sort_index().to_string())
-    print(f"Total: {len(df)}")
+def log_label_distribution(name, df):
+    distribution = df["label"].value_counts().sort_index().to_dict()
+    logger.info("%s label distribution: %s (total=%d)", name.upper(), distribution, len(df))
 
 
 def clean_and_deduplicate(df):
@@ -172,21 +175,23 @@ def remove_leakage(train_df, val_df, test_df):
 
     train_val_overlap = overlap_count(train_df, val_df)
     if train_val_overlap:
-        print(
-            f"[WARN] Removing {train_val_overlap} leaked validation rows also present in train."
+        logger.warning(
+            "Removing %d leaked validation rows also present in train.", train_val_overlap
         )
         val_df = val_df[~val_df["cleaned_text"].isin(train_texts)].copy()
 
     train_test_overlap = overlap_count(train_df, test_df)
     if train_test_overlap:
-        print(f"[WARN] Removing {train_test_overlap} leaked test rows also present in train.")
+        logger.warning(
+            "Removing %d leaked test rows also present in train.", train_test_overlap
+        )
         test_df = test_df[~test_df["cleaned_text"].isin(train_texts)].copy()
 
     val_texts = set(val_df["cleaned_text"])
     val_test_overlap = overlap_count(val_df, test_df)
     if val_test_overlap:
-        print(
-            f"[WARN] Removing {val_test_overlap} leaked test rows also present in validation."
+        logger.warning(
+            "Removing %d leaked test rows also present in validation.", val_test_overlap
         )
         test_df = test_df[~test_df["cleaned_text"].isin(val_texts)].copy()
 
@@ -219,7 +224,7 @@ def save_processed_splits(data_dir, train_df, val_df, test_df):
         split_df[["text", "cleaned_text", "label"]].to_csv(
             output_path, index=False, encoding="utf-8"
         )
-        print(f"Saved {split_name}: {output_path} ({len(split_df)} rows)")
+        logger.info("Saved %s split: %s (%d rows)", split_name, output_path, len(split_df))
 
 
 def load_processed_splits(data_dir):
@@ -232,56 +237,25 @@ def load_processed_splits(data_dir):
 def build_processed_dataset(data_dir="data"):
     data_path = Path(data_dir)
 
-    print("Loading source CSV files...")
+    logger.info("Loading source CSV files...")
     loaded_df, source_report = load_source_data(data_path)
 
-    print("\nSOURCE FILE REPORT")
     for item in source_report:
-        print(f"  - {item['file']}: {item['rows']} rows")
+        logger.info("Source: %s -> %d rows", item["file"], item["rows"])
 
     clean_df, cleaning_report = clean_and_deduplicate(loaded_df)
 
-    print("\nCLEANING REPORT")
-    print(
-        "Total rows loaded before cleaning: "
-        f"{cleaning_report['total_rows_loaded_before_cleaning']}"
-    )
-    print(
-        "Total rows after dropping invalid rows: "
-        f"{cleaning_report['total_rows_after_dropping_invalid_rows']}"
-    )
-    print(f"Raw duplicates removed: {cleaning_report['raw_duplicates_removed']}")
-    print(
-        "Cleaned_text duplicates removed: "
-        f"{cleaning_report['cleaned_text_duplicates_removed']}"
-    )
-    print(
-        "Conflicting cleaned_text rows removed: "
-        f"{cleaning_report['conflicting_cleaned_text_removed']}"
-    )
-    print(f"Final number of clean samples: {cleaning_report['final_clean_samples']}")
-    print_label_distribution("full clean dataset", clean_df)
+    logger.info("Cleaning report: %s", cleaning_report)
+    log_label_distribution("full clean dataset", clean_df)
 
     train_df, val_df, test_df = split_clean_dataset(clean_df)
     train_df, val_df, test_df, leakage_report = remove_leakage(train_df, val_df, test_df)
 
-    print("\nLEAKAGE REPORT")
-    print(
-        "Overlap count between train and validation: "
-        f"{leakage_report['train_vs_validation_overlap']}"
-    )
-    print(
-        "Overlap count between train and test: "
-        f"{leakage_report['train_vs_test_overlap']}"
-    )
-    print(
-        "Overlap count between validation and test: "
-        f"{leakage_report['validation_vs_test_overlap']}"
-    )
+    logger.info("Leakage report: %s", leakage_report)
 
-    print_label_distribution("train split", train_df)
-    print_label_distribution("validation split", val_df)
-    print_label_distribution("test split", test_df)
+    log_label_distribution("train split", train_df)
+    log_label_distribution("validation split", val_df)
+    log_label_distribution("test split", test_df)
 
     save_processed_splits(data_path, train_df, val_df, test_df)
     return train_df, val_df, test_df, cleaning_report, leakage_report
@@ -342,7 +316,7 @@ def train_logistic_regression(data_dir="data", models_dir="models"):
         ]
     )
 
-    print("\nTraining Logistic Regression with TF-IDF (balanced, 1-2 grams)...")
+    logger.info("Training Logistic Regression with TF-IDF (balanced, 1-2 grams)...")
     train_started_at = time.time()
     pipeline.fit(train_df["cleaned_text"], train_df["label"])
     training_duration = time.time() - train_started_at
@@ -353,7 +327,7 @@ def train_logistic_regression(data_dir="data", models_dir="models"):
     test_probs = pipeline.predict_proba(test_df["cleaned_text"])[:, fake_class_idx]
 
     best_threshold, best_val_f1 = tune_threshold(val_df["label"].to_numpy(), val_probs)
-    print(f"Best validation threshold: {best_threshold:.2f} (F1={best_val_f1:.4f})")
+    logger.info("Best validation threshold: %.2f (F1=%.4f)", best_threshold, best_val_f1)
 
     val_predictions_default = (val_probs >= 0.5).astype(int)
     test_predictions_default = (test_probs >= 0.5).astype(int)
@@ -378,34 +352,16 @@ def train_logistic_regression(data_dir="data", models_dir="models"):
         "training_duration": float(training_duration),
     }
 
-    print(
-        "Validation (default 0.5): "
-        f"acc={metrics['validation']['accuracy']:.4f}, "
-        f"P={metrics['validation']['precision']:.4f}, "
-        f"R={metrics['validation']['recall']:.4f}, "
-        f"F1={metrics['validation']['f1_score']:.4f}"
-    )
-    print(
-        f"Validation (tuned {best_threshold:.2f}): "
-        f"acc={metrics['validation_tuned']['accuracy']:.4f}, "
-        f"P={metrics['validation_tuned']['precision']:.4f}, "
-        f"R={metrics['validation_tuned']['recall']:.4f}, "
-        f"F1={metrics['validation_tuned']['f1_score']:.4f}"
-    )
-    print(
-        "Test (default 0.5): "
-        f"acc={metrics['test']['accuracy']:.4f}, "
-        f"P={metrics['test']['precision']:.4f}, "
-        f"R={metrics['test']['recall']:.4f}, "
-        f"F1={metrics['test']['f1_score']:.4f}"
-    )
-    print(
-        f"Test (tuned {best_threshold:.2f}): "
-        f"acc={metrics['test_tuned']['accuracy']:.4f}, "
-        f"P={metrics['test_tuned']['precision']:.4f}, "
-        f"R={metrics['test_tuned']['recall']:.4f}, "
-        f"F1={metrics['test_tuned']['f1_score']:.4f}"
-    )
+    for split_name in ("validation", "validation_tuned", "test", "test_tuned"):
+        m = metrics[split_name]
+        logger.info(
+            "%s: acc=%.4f, P=%.4f, R=%.4f, F1=%.4f",
+            split_name,
+            m["accuracy"],
+            m["precision"],
+            m["recall"],
+            m["f1_score"],
+        )
 
     model_path = Path(models_dir) / "logistic_regression.pkl"
     metrics_path = Path(models_dir) / "models_metrics.json"
@@ -416,12 +372,26 @@ def train_logistic_regression(data_dir="data", models_dir="models"):
     with threshold_path.open("w", encoding="utf-8") as threshold_file:
         json.dump({"fake_threshold": best_threshold}, threshold_file, indent=4)
 
-    print("\nSaved artifacts:")
-    print(f"  - {model_path}")
-    print(f"  - {metrics_path}")
-    print(f"  - {threshold_path}")
-    print(f"Total run duration: {time.time() - started_at:.2f}s")
+    logger.info("Saved artifacts: %s, %s, %s", model_path, metrics_path, threshold_path)
+    logger.info("Total run duration: %.2fs", time.time() - started_at)
+
+
+def _configure_cli_logging():
+    """When running this script directly (no Django), wire up a basic stream handler."""
+    if logger.handlers:
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+    logger.addHandler(handler)
+    logger.setLevel(os.environ.get("DETECTOR_LOG_LEVEL", "INFO"))
+    logger.propagate = False
 
 
 if __name__ == "__main__":
+    _configure_cli_logging()
     train_logistic_regression()

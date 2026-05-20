@@ -3,33 +3,43 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Vietnamese Fake News Detection</title>
+    <title>Nhận diện tin giả tiếng Việt</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
     <main class="mx-auto flex min-h-screen w-full max-w-5xl flex-col justify-center px-4 py-10 sm:px-6">
-        <div class="mb-8">
-            <p class="mb-2 text-sm font-semibold uppercase tracking-wide text-blue-700">Student project</p>
-            <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Vietnamese Fake News Detection</h1>
-            <p class="mt-3 max-w-3xl text-base leading-7 text-slate-600">
-                Enter Vietnamese news content to classify it as reliable or unreliable. The system cleans the text with Vietnamese preprocessing, extracts TF-IDF features, and predicts with Logistic Regression.
-            </p>
+        <div class="mb-8 flex items-start justify-between gap-4">
+            <div>
+                <p class="mb-2 text-sm font-semibold uppercase tracking-wide text-blue-700">Đồ án sinh viên</p>
+                <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Nhận diện tin giả tiếng Việt</h1>
+                <p class="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+                    Nhập nội dung tin tức tiếng Việt để hệ thống phân loại là tin đáng tin hay không. Pipeline tiền xử lý tiếng Việt, trích xuất đặc trưng TF-IDF (1-2 grams) và phân loại bằng Logistic Regression có cân bằng lớp.
+                </p>
+            </div>
+            <a href="{% url 'history' %}" class="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Lịch sử
+            </a>
         </div>
 
-        <form method="post" class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <form method="post" id="predict-form" class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             {% csrf_token %}
-            <label for="text" class="mb-2 block text-sm font-semibold text-slate-800">News content</label>
+            <label for="text" class="mb-2 block text-sm font-semibold text-slate-800">Nội dung tin tức</label>
             <textarea
                 id="text"
                 name="text"
                 rows="10"
+                maxlength="50000"
                 class="w-full resize-y rounded-lg border border-slate-300 bg-white p-4 text-sm leading-6 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                placeholder="Nhập nội dung tin tức tiếng Việt..."
+                placeholder="Dán nội dung bài viết tiếng Việt cần kiểm tra..."
             >{{ text }}</textarea>
             <div class="mt-4 flex items-center justify-between gap-3">
-                <p class="text-sm text-slate-500">Main model: Logistic Regression.</p>
-                <button type="submit" class="rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200">
-                    Analyze
+                <p class="text-sm text-slate-500">Mô hình: TF-IDF + Logistic Regression (cân bằng lớp).</p>
+                <button type="submit" id="submit-btn" class="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400">
+                    <svg id="spinner" class="hidden h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                    <span id="submit-label">Phân tích</span>
                 </button>
             </div>
         </form>
@@ -44,33 +54,72 @@
             <section class="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <p class="text-sm font-semibold uppercase tracking-wide text-slate-500">Final prediction</p>
+                        <p class="text-sm font-semibold uppercase tracking-wide text-slate-500">Kết quả dự đoán</p>
                         <h2 class="mt-1 text-3xl font-bold {% if result.label == 1 %}text-red-700{% else %}text-emerald-700{% endif %}">
-                            {{ result.prediction }}
+                            {% if result.label == 1 %}Tin giả{% else %}Tin thật{% endif %}
                         </h2>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Ngưỡng cảnh báo: ≥ {{ result.threshold }} → tin giả
+                        </p>
                     </div>
                     <div class="grid grid-cols-2 gap-3 sm:w-72">
                         <div class="rounded-lg bg-emerald-50 p-4">
-                            <p class="text-sm font-medium text-emerald-800">Real probability</p>
+                            <p class="text-sm font-medium text-emerald-800">Xác suất tin thật</p>
                             <p class="mt-1 text-2xl font-bold text-emerald-900">{{ result.real_probability }}%</p>
                         </div>
                         <div class="rounded-lg bg-red-50 p-4">
-                            <p class="text-sm font-medium text-red-800">Fake probability</p>
+                            <p class="text-sm font-medium text-red-800">Xác suất tin giả</p>
                             <p class="mt-1 text-2xl font-bold text-red-900">{{ result.fake_probability }}%</p>
                         </div>
                     </div>
                 </div>
 
+                {% if result.top_fake_features or result.top_real_features %}
+                    <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-lg border border-red-100 bg-red-50/50 p-4">
+                            <h3 class="text-sm font-semibold text-red-800">Từ/cụm từ đẩy về phía tin giả</h3>
+                            <ul class="mt-2 space-y-1 text-sm">
+                                {% for feat in result.top_fake_features %}
+                                    <li class="flex justify-between gap-2"><span class="font-medium text-red-900">{{ feat.term }}</span><span class="text-red-700">+{{ feat.weight }}</span></li>
+                                {% empty %}
+                                    <li class="text-xs text-slate-500 italic">Không có đặc trưng nổi bật.</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="rounded-lg border border-emerald-100 bg-emerald-50/50 p-4">
+                            <h3 class="text-sm font-semibold text-emerald-800">Từ/cụm từ đẩy về phía tin thật</h3>
+                            <ul class="mt-2 space-y-1 text-sm">
+                                {% for feat in result.top_real_features %}
+                                    <li class="flex justify-between gap-2"><span class="font-medium text-emerald-900">{{ feat.term }}</span><span class="text-emerald-700">{{ feat.weight }}</span></li>
+                                {% empty %}
+                                    <li class="text-xs text-slate-500 italic">Không có đặc trưng nổi bật.</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                {% endif %}
+
                 <div class="mt-5 rounded-lg bg-slate-50 p-4">
-                    <h3 class="text-sm font-semibold text-slate-800">Cleaned text</h3>
+                    <h3 class="text-sm font-semibold text-slate-800">Nội dung sau tiền xử lý</h3>
                     <p class="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{{ result.cleaned_text }}</p>
                 </div>
-
-                <p class="mt-4 text-sm leading-6 text-slate-600">
-                    This prediction uses one model only: a TF-IDF feature extractor followed by Logistic Regression.
-                </p>
             </section>
         {% endif %}
     </main>
+
+    <script>
+        (function () {
+            const form = document.getElementById("predict-form");
+            const btn = document.getElementById("submit-btn");
+            const spinner = document.getElementById("spinner");
+            const label = document.getElementById("submit-label");
+            if (!form || !btn) return;
+            form.addEventListener("submit", function () {
+                btn.disabled = true;
+                spinner.classList.remove("hidden");
+                label.textContent = "Đang phân tích...";
+            });
+        })();
+    </script>
 </body>
 </html>
