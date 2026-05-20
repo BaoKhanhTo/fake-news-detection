@@ -1,6 +1,8 @@
 # Hệ thống nhận diện tin giả tiếng Việt
 
-Dự án xây dựng một ứng dụng web đơn giản bằng Django để phân loại nội dung tin tức tiếng Việt thành **Real News** hoặc **Fake News**. Pipeline hiện tại sử dụng tiền xử lý tiếng Việt, trích xuất đặc trưng bằng TF-IDF và mô hình **Logistic Regression**.
+Dự án xây dựng một ứng dụng web đơn giản bằng Django để phân loại nội dung tin tức tiếng Việt thành **Real News** hoặc **Fake News**. Pipeline hiện tại sử dụng tiền xử lý tiếng Việt, trích xuất đặc trưng bằng TF-IDF (1–2 grams, `sublinear_tf`) và mô hình **Logistic Regression** với `class_weight="balanced"` để xử lý mất cân bằng lớp.
+
+> Các phiên bản trước có thử nghiệm với PhoBERT/ViBERT/SBERT nhưng đã được loại bỏ trong bản refactor `af93adc` để giữ stack tối thiểu (Django + scikit-learn). Tham khảo lịch sử git nếu cần khôi phục.
 
 ## Mục lục
 
@@ -58,18 +60,23 @@ Fake_News_Detect/
 │   ├── val/
 │   │   ├── val_data.csv
 │   │   └── update_val_data.csv
-│   └── test/
-│       └── fix_test_data.csv
+│   ├── test/
+│   │   └── fix_test_data.csv
+│   └── processed/
+│       ├── train_clean.csv
+│       ├── val_clean.csv
+│       └── test_clean.csv
 ├── models/
 │   ├── logistic_regression.pkl     # Model đã huấn luyện
-│   └── models_metrics.json         # Chỉ số đánh giá model
+│   ├── models_metrics.json         # Chỉ số đánh giá model
+│   └── threshold.json              # Ngưỡng xác suất tối ưu cho lớp Fake
 ├── src/
 │   ├── preprocess.py               # Làm sạch văn bản và tách từ
-│   ├── split_data.py               # Script hỗ trợ chia dữ liệu
-│   ├── train.py                    # Huấn luyện model
+│   ├── train.py                    # Huấn luyện model + tuning threshold
 │   └── show_metrics.py             # Script xem metrics
 ├── manage.py
 ├── requirements.txt
+├── .env.example                    # Mẫu biến môi trường cho production
 └── run_all.bat                     # Chạy kiểm tra, migrate và server Django
 ```
 
@@ -88,6 +95,24 @@ Cài thư viện:
 pip install -r requirements.txt
 ```
 
+## Cấu hình môi trường
+
+Khi chạy local có thể bỏ qua bước này (Django dùng `DEBUG=True` và `SECRET_KEY` mặc định). **Khi deploy production**, bắt buộc set các biến môi trường — xem `.env.example`:
+
+| Biến | Mô tả | Bắt buộc |
+| --- | --- | --- |
+| `DJANGO_SECRET_KEY` | Khoá bí mật dài, ngẫu nhiên | Yes (khi `DJANGO_DEBUG=0`) |
+| `DJANGO_DEBUG` | `1` để bật debug, `0` cho production | No (mặc định `1`) |
+| `DJANGO_ALLOWED_HOSTS` | Danh sách host phân tách bằng dấu phẩy | Yes (khi `DJANGO_DEBUG=0`) |
+
+Sinh `SECRET_KEY` mới:
+
+```bash
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+Nếu chạy production mà vẫn để `SECRET_KEY` mặc định, server sẽ từ chối khởi động.
+
 ## Huấn luyện mô hình
 
 Chạy lệnh:
@@ -100,10 +125,14 @@ Script huấn luyện sẽ:
 
 - Đọc dữ liệu từ `data/train`, `data/val` và `data/test`.
 - Chuẩn hóa tên cột văn bản và nhãn.
-- Làm sạch dữ liệu, loại bỏ dòng thiếu, dòng rỗng và bản ghi trùng trong từng split.
-- Huấn luyện pipeline gồm `TfidfVectorizer(max_features=5000)` và `LogisticRegression(max_iter=1000)`.
+- Làm sạch dữ liệu, loại bỏ dòng thiếu, dòng rỗng, nhãn không hợp lệ và bản ghi trùng.
+- Tạo lại bộ chia dữ liệu sạch theo tỷ lệ 70% train, 15% validation và 15% test.
+- Kiểm tra và loại bỏ trùng lặp `cleaned_text` giữa các split để tránh data leakage.
+- Lưu split mới vào `data/processed/train_clean.csv`, `data/processed/val_clean.csv` và `data/processed/test_clean.csv`.
+- Huấn luyện pipeline gồm `TfidfVectorizer(max_features=30000, ngram_range=(1,2), min_df=2, max_df=0.95, sublinear_tf=True)` và `LogisticRegression(max_iter=2000, class_weight="balanced")`.
+- Tự động tìm ngưỡng xác suất tối ưu F1 cho lớp Fake trên tập validation, lưu vào `models/threshold.json`.
 - Lưu model vào `models/logistic_regression.pkl`.
-- Lưu chỉ số đánh giá vào `models/models_metrics.json`.
+- Lưu chỉ số đánh giá (cả threshold mặc định 0.5 và threshold đã tune) vào `models/models_metrics.json`.
 
 ## Chạy ứng dụng web
 
@@ -146,30 +175,33 @@ http://127.0.0.1:8000/
 
 ## Kết quả hiện tại
 
-Theo file `models/models_metrics.json`, model hiện tại đạt:
+Theo file `models/models_metrics.json`, model hiện tại đạt (819 mẫu test, lớp Fake = 186):
 
-| Metric | Giá trị |
-| --- | ---: |
-| Accuracy | 0.9379 |
-| Precision | 0.9067 |
-| Recall | 0.9577 |
-| F1-score | 0.9315 |
-| Training duration | 0.5816 giây |
+| Metric | Threshold mặc định (0.5) | Threshold đã tune (0.45) |
+| --- | ---: | ---: |
+| Accuracy | 0.8620 | 0.8462 |
+| Precision (Fake) | 0.6872 | 0.6327 |
+| Recall (Fake) | 0.7204 | 0.7688 |
+| F1-score (Fake) | 0.7034 | 0.6942 |
 
-Confusion matrix:
-
-```text
-[[83, 7],
- [ 3, 68]]
-```
+So với phiên bản chưa cân bằng lớp, **Recall lớp Fake tăng từ 0.5161 lên 0.7204** (+20 điểm) — model không còn bỏ sót gần một nửa tin giả như trước. Hạ ngưỡng xuống 0.45 đẩy Recall lên 0.7688 nếu ưu tiên không bỏ sót tin giả hơn là tránh báo nhầm.
 
 ## Ghi chú dữ liệu
 
-`src/train.py` ưu tiên các file sau khi huấn luyện:
+`src/train.py` giữ nguyên dữ liệu gốc và đọc các file sau để dựng bộ dữ liệu sạch:
 
-- Train: `data/train/fake_news.csv`, `data/train/update_train_data.csv`
-- Validation: `data/val/val_data.csv`
-- Test: `data/test/fix_test_data.csv`
+- `data/train/fake_news.csv`
+- `data/train/train_data.csv`
+- `data/train/update_train_data.csv`
+- `data/val/val_data.csv`
+- `data/val/update_val_data.csv`
+- `data/test/fix_test_data.csv`
+
+Các file processed được tạo mới:
+
+- Train: `data/processed/train_clean.csv`
+- Validation: `data/processed/val_clean.csv`
+- Test: `data/processed/test_clean.csv`
 
 Các cột văn bản được hỗ trợ:
 
