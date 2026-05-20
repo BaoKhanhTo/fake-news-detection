@@ -167,13 +167,6 @@ Bảng dưới đây so sánh 8 mô hình được triển khai trong hệ thố
 *Bảng so sánh này được tổng hợp dựa trên cấu trúc thư mục `models/` và mã nguồn trong `src/` của dự án.*
 ---
 
-## Phần 5. THÔNG TIN THÀNH VIÊN
-*   **Họ và tên:** Lê Huỳnh Ngọc
-*   **Giáo viên hướng dẫn:** TS. Phạm Thế Anh Phú
-*   **Đồ án:** Hệ thống nhận diện tin giả tiếng Việt - 2026.
-
----
-
 ## DANH SÁCH TÀI LIỆU THAM KHẢO
 
 1.  **Vosoughi, S., Roy, D., & Aral, S. (2018).** *The spread of true and false news online*. Science, 359(6380), 1146-1151. [Link bài báo](https://www.science.org/doi/10.1126/science.aap9559). (Truy cập: 07/03/2026).
